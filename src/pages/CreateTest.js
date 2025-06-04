@@ -13,7 +13,7 @@ import ShowTestCompletedScreen from "../components/Dashboard/ShowTestCompletedSc
 
 const CreateTest = ({ }) => {
     const navigate = useNavigate();
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(false);
     const [searchParams] = useSearchParams();
     const { showSnackbar } = useSnackbar();
     const totalSteps = 4;
@@ -49,7 +49,10 @@ const CreateTest = ({ }) => {
             if (testId) {
                 requestObj.testId = testId;
             }
-            response = await apiCall('POST', 'dashboard/creater/createNewTest', requestObj, showSnackbar, true)
+            response = await apiCall('POST', 'dashboard/creater/createNewTest', requestObj, showSnackbar, true);
+            searchParams.set("testId", response.data.id);
+            const newUrl = `${window.location.pathname}?${searchParams.toString()}`;
+            window.history.pushState(null, "", newUrl);
         } else if (currentStep === 2) {
             if (!testId) {
                 showSnackbar("Please Create a test first", "info");
@@ -108,15 +111,13 @@ const CreateTest = ({ }) => {
                         <Card className="p-4 shadow-sm rounded-3" style={{ maxWidth: "70%", margin: "auto", backgroundColor: "white" }}>
                             {currentStep === 1 && loading === false && <CreateTestDetails handleNext={handleNext} prefilledData={prefilledData} />}
                             {currentStep === 2 && loading === false && <TestParticipantsForm handleNext={handleNext} prefilledData={prefilledData} />}
-                            {currentStep === 3 && loading === false && <TestQuestionSectionForm handleNext={handleNext} prefilledData={prefilledData} />}
+                            {currentStep === 3 && loading === false && <TestQuestionSectionForm handleNext={handleNext} prefilledData={prefilledData}/>}
                             {currentStep === 4 && loading === false && <TestAcknowledgementLiveForm handleNext={handleNext} />}
                         </Card>
                         {loading && <Loading message="Fetching Already Available Details" />}
                     </div>
-                    {/* Card Wrapper */}
                     <div className="d-flex justify-content-between align-items-center mt-3">
                         <Button onClick={handlePrevious} disabled={currentStep === 1}>⬅️ Previous</Button>
-                        {/* <Button onClick={handleNext} disabled={currentStep === totalSteps}>Next ➡️</Button> */}
                     </div>
                 </>
             }

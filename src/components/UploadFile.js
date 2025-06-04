@@ -73,17 +73,17 @@ const UploadFile = ({
                 setUploading(false);
                 return;
             }
-            if (faceDetect) {
-                const webcamImg = await faceapi.fetchImage(file);
-                const liveDetection = await faceapi
-                    .detectSingleFace(webcamImg)
-                    .withFaceLandmarks()
-                    .withFaceDescriptor();
+            // if (faceDetect) {
+            //     const webcamImg = await faceapi.fetchImage(file);
+            //     const liveDetection = await faceapi
+            //         .detectSingleFace(webcamImg)
+            //         .withFaceLandmarks()
+            //         .withFaceDescriptor();
 
-                if (!liveDetection) {
-                    setError("No Face Detected: " + file.name);
-                }
-            }
+            //     if (!liveDetection) {
+            //         setError("No Face Detected: " + file.name);
+            //     }
+            // }
             const formData = new FormData();
             formData.append("file", file);
             formData.append("uploadedByModelType", uploadedByModelType);

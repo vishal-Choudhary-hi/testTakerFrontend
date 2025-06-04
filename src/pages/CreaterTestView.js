@@ -3,25 +3,41 @@ import apiCall from "../services/api";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import Loading from "../components/Loading";
 import { Container, Accordion, Button, Row, Col, Card, ListGroup, Badge, CardBody } from "react-bootstrap";
+import InviteDetailsAndScoreManually from "../components/InviteDetailsAndScoreManually";
+import { useSnackbar } from "../contexts/SnackbarContext";
 
 const CreaterTestView = () => {
     const navigate = useNavigate();
+    const { showSnackbar } = useSnackbar();
     const [loading, setLoading] = useState(true);
     const [searchParams] = useSearchParams();
     const [testData, setTestData] = useState(null);
     const [currentQuestion, setCurrentQuestion] = useState(null);
     const questionRefs = useRef({});
-
+    const [loadingMessage, setLoadingMessage] = useState("Fetching Test Details");
+    const [showInviteDetails, setShowInviteDetails] = useState(null);
+    const [testButtonDetails, setTestButtonDetails] = useState({label:"", disabled: true});
     useEffect(() => {
         let testId = searchParams.get("testId");
         if (testId) {
             setLoading(true);
+            setLoadingMessage("Fetching Test Details");
             getTestDetailsApiCall(testId);
         }
     }, []);
-
+    useEffect(() => {
+        if(testData === null) return;
+        if (testData.status === "result_pending") {
+            setTestButtonDetails({label:"Release Test Results", disabled: false});
+        }else if(testData.status === "live") {
+            setTestButtonDetails({label:"Mark Test As Result Pending", disabled: false});
+        }else{
+            setTestButtonDetails({label:"", disabled: true});
+        }
+    }, [testData]);
     const getTestDetailsApiCall = async (testId, showLoading = true) => {
         if (showLoading) setLoading(true);
+            setLoadingMessage("Fetching Test Details");
         let res = await apiCall("GET", `dashboard/creater/getTest?testId=${testId}&role=creator`, null, null, true);
         await new Promise((resolve) => setTimeout(resolve, 1000));
         if (!res.data) navigate("/dashboard");
@@ -68,7 +84,64 @@ const CreaterTestView = () => {
         return `${mins} min ${secs} sec`;
     };
 
-    if (loading) return <Loading message="Fetching Already Available Details" />;
+    const getParticipantTotalScore = (selectedOptions) => {
+
+        let totalScore=0;
+        selectedOptions.forEach(option => {
+            if (option.manual_score) {
+                totalScore += option.manual_score;
+            }else{
+                totalScore += option.score;
+            }
+        });
+        return totalScore;
+    }
+    const getParticipantTotalNegativeScore = (selectedOptions) => {
+
+        let totalScore=0;
+        selectedOptions.forEach(option => {
+            if (option.manual_score && option.manual_score < 0) {
+                totalScore += option.manual_score;
+            }else if (option.score < 0) {
+                totalScore += option.score;
+            }
+        });
+        return totalScore;
+    }
+    const getParticipantTotalPositiveScore = (selectedOptions) => {
+
+        let totalScore=0;
+        selectedOptions.forEach(option => {
+            if (option.manual_score && option.manual_score > 0) {
+                totalScore += option.manual_score;
+            }else if (option.score > 0) {
+                totalScore += option.score;
+            }
+        });
+        return totalScore;
+    }
+    const handleTestDetailsCta = async() => {
+        if (testData.status === "result_pending") {
+            setTestButtonDetails({label:"Release Test Results", disabled: false});
+            await releaseTestResult();
+        }else if(testData.status === "live") {
+            let data = {};
+            setTestButtonDetails({label:"Mark Test As Result Pending", disabled: false});
+            data.status = 'result_pending';
+            data.testId = parseInt(testData.id);
+            await apiCall("POST", "dashboard/creater/changeTestStatus", data, showSnackbar, true);
+        }
+        getTestDetailsApiCall(testData.id, false);
+
+    }
+    const releaseTestResult = async () => {
+        setLoading(true);
+            setLoadingMessage("Releasing Test Results");
+        const response = await apiCall("POST", "dashboard/creater/releaseTestResult", { testId: testData.id }, showSnackbar, true);
+        setLoading(false);
+
+    }
+    if (loading) return <Loading message= {loadingMessage}  showType="non_closeable_popup" />;
 
     return (
         <Container className="py-4">
@@ -87,6 +160,9 @@ const CreaterTestView = () => {
                             <ListGroup.Item><strong>Duration:</strong> {formatDuration(testData.duration_in_seconds)}</ListGroup.Item>
                             <ListGroup.Item><strong>Status:</strong> {testData.status}</ListGroup.Item>
                         </ListGroup>
+                        {!testButtonDetails.disabled &&
+                        <Button variant="primary" className="mt-3" onClick={() => handleTestDetailsCta()} disabled={testButtonDetails.disabled}>{testButtonDetails.label}</Button>
+            }
                     </Accordion.Body>
                 </Accordion.Item>
 
@@ -117,25 +193,57 @@ const CreaterTestView = () => {
                                 <Col md={4} key={index} className="mb-3">
                                     <Card>
                                         <Card.Body>
-                                            <div className="d-flex">
+                                            <div className="d-flex align-items-center">
                                                 <Card.Img
                                                     variant="top"
                                                     src={invite.VerificationImage.link}
                                                     alt={invite.name}
                                                     style={{ height: "50px", width: "50px", borderRadius: "50%" }}
                                                 />
-                                                <div style={{ marginLeft: "10px" }}>
+                                                <div className="ms-3">
                                                     <Card.Title>{invite.name}</Card.Title>
                                                     <Card.Text>{invite.email}</Card.Text>
                                                 </div>
                                             </div>
-                                            <Badge bg={invite.email_status ? "success" : "secondary"}>
-                                                {invite.email_status ? "Email Sent" : "Not Sent"}
-                                            </Badge>
-                                            {/* Display the acceptance status */}
-                                            <Badge bg={invite.accepted ? "success" : "warning"} className="ms-2">
-                                                {invite.accepted ? "Accepted" : "Not Accepted"}
-                                            </Badge>
+
+                                            <div className="mt-2">
+                                                <Badge bg={invite.email_status ? "success" : "secondary"} className="me-2">
+                                                    {invite.email_status ? "Email Sent" : "Not Sent"}
+                                                </Badge>
+                                                <Badge bg={invite.accepted ? "success" : "warning"} className="me-2">
+                                                    {invite.accepted ? "Accepted" : "Not Accepted"}
+                                                </Badge>
+                                                <Badge bg={invite.TestParticipant?.participated ? "success" : "danger"}>
+                                                    {invite.TestParticipant?.participated ? "Participated" : "Not Participated"}
+                                                </Badge>
+                                            </div>
+                                            <div className="mt-4 p-3 border rounded bg-light">
+                                                {!invite.TestParticipant?.participated ? 
+                                                    <h6>No Test Score Summary (not participated in test yet)</h6>
+                                                :
+                                                    <>
+                                                        <h6 className="text-primary mb-3 fw-bold">Test Score Summary</h6>
+
+                                                        <div className="d-flex justify-content-between mb-2">
+                                                            <div className="fw-bold text-dark">Score:</div>
+                                                            <div className="fw-bold text-success">{getParticipantTotalScore(invite.TestParticipant.SelectedOptionMapping)}</div>
+                                                        </div>
+
+                                                        <div className="d-flex justify-content-between mb-2">
+                                                            <div className="fw-bold text-dark">Total Positive Marks:</div>
+                                                            <div className="fw-bold text-primary">{getParticipantTotalPositiveScore(invite.TestParticipant.SelectedOptionMapping)}</div>
+                                                        </div>
+
+                                                        <div className="d-flex justify-content-between">
+                                                            <div className="fw-bold text-dark">Total Negative Marks:</div>
+                                                            <div className="fw-bold text-danger">{getParticipantTotalNegativeScore(invite.TestParticipant.SelectedOptionMapping)}</div>
+                                                        </div>
+                                                        <Button variant="primary" className="mt-3" onClick={()=>setShowInviteDetails(invite)}>
+                                                            View Details And Score Manually
+                                                        </Button>
+                                                    </>
+                                                }
+                                            </div>
                                         </Card.Body>
                                     </Card>
                                 </Col>
@@ -168,7 +276,11 @@ const CreaterTestView = () => {
                                                 </Button>
                                             ))}
                                         </div>
+                                        {
+                                            showInviteDetails!=null &&
+                                            <InviteDetailsAndScoreManually show={showInviteDetails!=null} onClose={()=>setShowInviteDetails(null)} details={showInviteDetails}/>
 
+                                        }
                                         {section.Question.map((question, questionIndex) => (
                                             <Card key={questionIndex} className="mb-3" ref={(el) => questionRefs.current[`question-${sectionIndex}-${questionIndex}`] = el}>
                                                 <Card.Body>
@@ -195,6 +307,31 @@ const CreaterTestView = () => {
                                 </Accordion.Item>
                             </Accordion>
                         ))}
+                    </Accordion.Body>
+                </Accordion.Item>
+
+                {/* OverAll Performance Analysis*/}
+                <Accordion.Item eventKey="5">
+                    <Accordion.Header>Overall Performance Analysis</Accordion.Header>
+                    <Accordion.Body>
+                        <Card className="mb-3">
+                            <Card.Body>
+                                {/* show total invited */}
+                                {/* show total participated */}
+                                {/* show total number of sections */}
+                                {/* show total number of questions */}
+                                {/* show the average marks got  in whole test*/}
+                                {/* show the average marks got section wise */}
+                                {/* show filter of filtering test invitees to show only who have participated in the test, search with name, search with email*/}
+                                {/* show a table of test invitees in table show columns with email, name, participated, number of warnings, number of correct answers,number of incorrect answers, total score, positive marks, negative marks, above average, below average, average,ranking,score manually cta */}
+                                {/* show bar graph representations of the score each participant got */}
+                                {/* show bar graph representations of the score each participant got in perticular section and for each section*/}
+                                {/* show bar graph representations of the negative score each participant got both whole test and section wise*/}
+                                {/* show bar graph representations of the positive score each participant got both whole test and section wise*/}
+                                {/* show bar graph representations of the questions participant got right and wrong in a pair graph*/}
+
+                            </Card.Body>
+                        </Card>
                     </Accordion.Body>
                 </Accordion.Item>
             </Accordion>

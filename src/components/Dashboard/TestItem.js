@@ -25,25 +25,21 @@ const TestCard = ({ testDetails, role }) => {
         disabled: true
     });
     useEffect(() => {
-        const formatDateTime = (dateStr) => new Date(dateStr).toLocaleString();
 
         const startTime = new Date(testDetails.start_time);
         const endTime = new Date(testDetails.end_time);
         const now = new Date();
-
-        console.log("Start Time:", formatDateTime(startTime));
-        console.log("End Time:", formatDateTime(endTime));
-        console.log("Current Time:", formatDateTime(now));
-
         if (role === 'creator') {
             setButtonDetails({ label: "Manage Test", disabled: false });
         } else {
             if (testDetails.status === "live" && startTime <= now && endTime >= now) {
                 setButtonDetails({ label: "Give Test", disabled: false });
-            } else if (endTime <= now) {
+            }else if(testDetails.status === "completed") {
+                setButtonDetails({ label: "View Results", disabled: false });
+            }else if (endTime <= now) {
                 setButtonDetails({ label: "Test Ended", disabled: true });
             } else {
-                setButtonDetails({ label: "Test Not Started", disabled: true });
+                setButtonDetails({ label: "Test Not Started", disabled: false });
             }
         }
     }, []);
@@ -94,7 +90,7 @@ const TestCard = ({ testDetails, role }) => {
 
                                     role === 'creator'
                                         ? (testDetails.status === "draft" ? `/dashboard/createTest?testId=${testDetails.id}` : `/dashboard/test?testId=${testDetails.id}`)
-                                        : `/participator/test?testId=${testDetails.id}`
+                                        : (testDetails.status === "completed"?`/participator/test/${testDetails.id}/result`:`/participator/test?testId=${testDetails.id}`)
                                 )
                             }
                         >

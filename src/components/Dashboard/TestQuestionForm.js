@@ -1,11 +1,18 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Button, Form, Row, Col, Modal } from "react-bootstrap";
 import { FaTrash, FaEdit, FaPlus, FaSave } from "react-icons/fa";
+import AIQuestionGenerationForm from "./AIQuestionGenerationForm";
+import apiCall from "../../services/api";
+import { useSearchParams } from "react-router-dom";
+import Loading from "../Loading";
 
 const TestQuestionForm = ({ questions, updateQuestion, addQuestion, deleteQuestion, questionTypes }) => {
     const [editingIndex, setEditingIndex] = useState(null);
     const [editData, setEditData] = useState(null);
     const [errors, setErrors] = useState({});
+    const [searchParams] = useSearchParams();
+    const [showAIQuestionModal,setShowAIQuestionModal] = useState(false);
+    const [loading, setLoading] = useState(false);
     let previousLength = useRef();
     const openEditModal = (idx) => {
         setEditData({ ...questions[idx] });
@@ -109,6 +116,19 @@ const TestQuestionForm = ({ questions, updateQuestion, addQuestion, deleteQuesti
         setEditData({ ...editData, options: updatedOptions });
     };
 
+    const handleAIGenerateQuestions = async(questionData) => {
+        const urlSearchParams = new URLSearchParams(window.location.search);
+        let testId = urlSearchParams.get("testId");
+        const requestData = {
+           testId,
+            aiInstructions: questionData,
+        }
+        setLoading(true);
+        await apiCall("POST", "dashboard/creater/getQuestionRecomendationFromAI", requestData, null, true);
+        setLoading(false);
+        // setShowAIQuestionModal(false);
+    }
+
     return (
         <div>
             {questions.map((q, idx) => {
@@ -134,7 +154,21 @@ const TestQuestionForm = ({ questions, updateQuestion, addQuestion, deleteQuesti
                     </div>
                 );
             })}
+            <button className="btn btn-primary" onClick={() => setShowAIQuestionModal(true)}>
+        Open Question Generator
+      </button>
 
+            <Modal show={showAIQuestionModal} onHide={() => setShowAIQuestionModal(false)} size="lg" centered>
+                <Modal.Header closeButton>
+                    <Modal.Title>AI Question Generator</Modal.Title>
+                </Modal.Header>
+                <Modal.Body>
+                    {loading ? 
+                        <Loading message="Generating Questions"/>:
+                        <AIQuestionGenerationForm onSubmit={handleAIGenerateQuestions} />
+                    }
+                </Modal.Body>
+            </Modal>
             <div className="text-center mt-4">
                 <Button variant="primary" onClick={addQuestion}><FaPlus /> Add Question</Button>
             </div>

@@ -2,6 +2,8 @@ import React, { useEffect, useState, useRef } from "react";
 import TestItem from "./TestItem";
 import apiCall from "../../services/api";
 import { Form, Button, InputGroup, Row, Col } from "react-bootstrap";
+import DatePicker from "react-datepicker";
+import DateRangeFilter from "../Global/DateRangeFilter";
 
 const ListTest = ({ role }) => {
     const [testList, setTestList] = useState([]);
@@ -11,10 +13,13 @@ const ListTest = ({ role }) => {
     const [statusFilter, setStatusFilter] = useState("");
     const [startDate, setStartDate] = useState("");
     const [endDate, setEndDate] = useState("");
+    const [testStatuses, setTestStatuses] = useState([]);
+    const [dateRangePopUpVisible, setDateRangePopUpVisible] = useState(false);
     const limit = 3;
 
     useEffect(() => {
         fetchTests();
+        fetchTestStatus();
     }, [page, statusFilter, startDate, endDate]);
 
     const fetchTests = async () => {
@@ -36,7 +41,18 @@ const ListTest = ({ role }) => {
             setTotalPages(response.data.totalPages);
         }
     };
-
+    const fetchTestStatus = async () => {
+        let response = await apiCall(
+            "GET",
+            "dashboard/creater/getAllTestStatues",
+            {},
+            null,
+            true
+        );
+        if( response?.data ) {
+            setTestStatuses(response.data);
+        }
+    }
     const handleSearch = (e) => {
         e.preventDefault();
         setPage(1);
@@ -67,27 +83,22 @@ const ListTest = ({ role }) => {
                     {role == 'creator' &&
                         <Col md="2">
                             <Form.Select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
-                                <option value="">All Statuses</option>
-                                <option value="draft">Draft</option>
-                                <option value="confirmed">Confirmed</option>
-                                <option value="done">Done</option>
-                                <option value="delete">Deleted</option>
+                                {testStatuses.map((status) => (
+                                    <option key={status.id} value={status.id}>
+                                        {status.label}
+                                    </option>
+                                ))}
                             </Form.Select>
                         </Col>
                     }
 
-                    {/* Start Date */}
+                    {/* Date Range Filter */}
                     <Col md="2">
-                        <Form.Control type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+                        <Button variant="outline-secondary" onClick={() => setDateRangePopUpVisible(true)}>
+                            📅 Date Range
+                        </Button>
                     </Col>
-
-                    {/* End Date */}
-                    {role == 'creator' &&
-
-                        <Col md="2">
-                            <Form.Control type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
-                        </Col>
-                    }
+                    <DateRangeFilter setStartDate= {setStartDate} setEndDate={setEndDate} show={dateRangePopUpVisible} onClose={()=>setDateRangePopUpVisible(false)}/>
                     {/* Clear Button */}
                     <Col md="2">
                         <Button variant="outline-secondary" onClick={() => { setStartDate(""); setEndDate(""); setStatusFilter(""); setSearchQuery(""); fetchTests(); }}>
@@ -110,7 +121,7 @@ const ListTest = ({ role }) => {
             <div className="d-flex justify-content-between align-items-center mt-3">
                 <Button disabled={page === 1} onClick={() => setPage(page - 1)}>⬅️ Previous</Button>
                 <span>Page {page} of {totalPages}</span>
-                <Button disabled={page === totalPages} onClick={() => setPage(page + 1)}>Next ➡️</Button>
+                <Button disabled={page >= totalPages} onClick={() => setPage(page + 1)}>Next ➡️</Button>
             </div>
         </div>
     );

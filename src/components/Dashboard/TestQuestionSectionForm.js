@@ -17,7 +17,7 @@ const TestQuestionSectionForm = ({ handleNext, prefilledData }) => {
         questions: []
     };
     const [loading, setLoading] = useState(false);
-    const [currentSectionIndex, setCurrentSectionIndex] = useState(0);
+    const [currentSectionIndex, setCurrentSectionIndex] = useState(-1);
     const { showSnackbar } = useSnackbar();
 
     const [questionTypes, setQuestionTypes] = useState([]);
@@ -81,10 +81,15 @@ const TestQuestionSectionForm = ({ handleNext, prefilledData }) => {
     };
 
     const handleAddSection = () => {
-        if (!validateSection(currentSection)) return;
+        if(currentSectionIndex>=0){
+            if (!validateSection(currentSection)) {
+                    return;
+                }
+
+        }
 
         setQuestionSection([...questionSection, newSectionStructure]);
-        setCurrentSectionIndex(questionSection.length); // go to the new section
+        setCurrentSectionIndex(questionSection.length??0); // go to the new section
     };
 
     const handleSubmit = async (e) => {
@@ -106,17 +111,17 @@ const TestQuestionSectionForm = ({ handleNext, prefilledData }) => {
     const validateSection = (section) => {
         let error = {};
         let isValidated = true;
-        if (!section.label || section.label.trim() === "") {
+        if (!section?.label || section.label.trim() === "") {
             error.label = "Section label is required.";
             isValidated = false;
         }
 
-        if (!section.description || section.description.trim() === "") {
+        if (!section?.description || section.description.trim() === "") {
             error.description = "Section description is required.";
             isValidated = false;
         }
 
-        if (!Array.isArray(section.questions) || section.questions.length === 0) {
+        if (!Array.isArray(section?.questions) || section.questions.length === 0) {
             error.questions = "At least one question is required.";
             isValidated = false;
         }
@@ -154,7 +159,7 @@ const TestQuestionSectionForm = ({ handleNext, prefilledData }) => {
                     </div>
                     <Button
                         onClick={() => handleSelectionChange("next")}
-                        disabled={currentSectionIndex === questionSection.length - 1}
+                        disabled={currentSectionIndex >= questionSection.length - 1}
                         variant="outline-primary"
                     >
                         Next Section ➡️

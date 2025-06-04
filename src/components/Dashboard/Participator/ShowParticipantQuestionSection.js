@@ -2,11 +2,13 @@ import React, { useEffect, useState } from "react";
 import apiCall from "../../../services/api";
 import Loading from "../../Loading";
 import { Button, Card, Alert } from "react-bootstrap";
+import StartTestSection from "./StartTestSection";
 
-const ShowParticipantQuestionSection = ({ testId, onStartSection }) => {
+const ShowParticipantQuestionSection = ({ testId,handleQuitTest }) => {
     const [questionSection, setQuestionSection] = useState([]);
     const [loading, setLoading] = useState(true);
-
+    const [currentSection, setCurrentSection] = useState(null);
+    const [completedSections, setCompletedSections] = useState([]);
     useEffect(() => {
         getTestQuestionSection();
     }, []);
@@ -23,6 +25,15 @@ const ShowParticipantQuestionSection = ({ testId, onStartSection }) => {
         setQuestionSection(questionSections);
         setLoading(false);
     };
+
+    const onStartSection = async (sectionId) => {
+        setCurrentSection(sectionId);
+    }
+
+    const markSectionComplete =  (sectionId) => {
+        setCompletedSections([...completedSections, sectionId]);
+        setCurrentSection(null);
+    }
 
     const globalInstructions = (
         <Alert variant="info">
@@ -51,7 +62,7 @@ const ShowParticipantQuestionSection = ({ testId, onStartSection }) => {
                 <Loading message="Fetching Test Details..." />
             ) : (
                 <div>
-                    {globalInstructions}
+                    {!currentSection && globalInstructions}
                     {questionSection.map((section, index) => {
                         const numQuestions = section.Question.length;
                         const hasNegativeMarking = section.Question.some(
@@ -59,6 +70,11 @@ const ShowParticipantQuestionSection = ({ testId, onStartSection }) => {
                         );
 
                         return (
+                            <>
+                            {
+                            currentSection ? 
+                            <StartTestSection testId={testId} sectionId={currentSection} onMarkSectionCompleted={markSectionComplete}/>
+                            :
                             <Card
                                 key={index}
                                 style={{
@@ -86,13 +102,15 @@ const ShowParticipantQuestionSection = ({ testId, onStartSection }) => {
                                         </Card.Text>
                                     )}
                                     <Button
-                                        variant="primary"
-                                        onClick={() => onStartSection(section)}
+                                        variant={completedSections.some((completedSection) => completedSection === section.id)?"success":"primary"}
+                                        onClick={() => onStartSection(section.id)}
+                                        disabled={completedSections.some((completedSection) => completedSection === section.id)}
                                     >
-                                        Start Section
-                                    </Button>
+                                        {completedSections.some((completedSection) => completedSection === section.id)?"Completed":"Get Started"}                                 </Button>
                                 </Card.Body>
                             </Card>
+                            }
+                            </> 
                         );
                     })}
                 </div>

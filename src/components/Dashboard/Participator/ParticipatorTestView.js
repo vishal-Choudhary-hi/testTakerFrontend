@@ -6,9 +6,8 @@ import { Card, Button, Badge, Row, Col, Modal } from "react-bootstrap";
 import { useSnackbar } from "../../../contexts/SnackbarContext";
 import VerifyPhoto from "./VerifyPhoto";
 import ShowParticipantQuestionSection from "./ShowParticipantQuestionSection";
-
 const ParticipatorTestView = () => {
-    const totalTestWarnings = 1;
+    const totalTestWarnings = 50;
     const navigate = useNavigate();
     const [loading, setLoading] = useState(true);
     const [searchParams] = useSearchParams();
@@ -22,6 +21,9 @@ const ParticipatorTestView = () => {
     const faceRef = useRef();
     const [warnings, setWarnings] = useState(0);
     const [warning, setWarning] = useState({ buttonLabel: "", showModal: false, text: "", buttonAction: "" });
+    const [completeTest, setCompleteTest] = useState(false);
+    const [timeLeft, setTimeLeft] = useState(null); // in seconds
+
     useEffect(() => {
         if (isMounted.current) return;
         isMounted.current = true;
@@ -37,6 +39,29 @@ const ParticipatorTestView = () => {
             setWarnings(warnings + 1);
         }
     }, [warning])
+
+    useEffect(() => {
+        if (startTest && faceValidate  && testData?.Test.duration_in_seconds) {
+            setTimeLeft(testData.Test.duration_in_seconds);
+        }
+    }, [startTest,testData]);
+
+    useEffect(() => {
+        if (timeLeft === null) return;
+    
+        if (timeLeft === 0) {
+            handleQuitTest("Time Up");
+            return;
+        }
+        
+        const timer = setInterval(() => {
+            setTimeLeft((prev) => prev - 1);
+        }, 1000);
+    
+        return () => clearInterval(timer);
+    }, [timeLeft]);
+    
+    
     const getTestDetailsApiCall = async (testId) => {
         const res = await apiCall("GET", `dashboard/participant/getTestBasicDetails?testId=${testId}`, null, showSnackbar, true);
         await new Promise(resolve => setTimeout(resolve, 500));
@@ -47,7 +72,6 @@ const ParticipatorTestView = () => {
         setTestData(res.data);
         setLoading(false);
     };
-
     const formatDate = (dateStr) => {
         const date = new Date(dateStr);
         if (isNaN(date)) return "Invalid Date";
@@ -56,7 +80,7 @@ const ParticipatorTestView = () => {
 
     const now = new Date();
     const Test = testData?.Test || {};
-    const hasParticipated = testData?.TestParticipant?.[0]?.participated;
+    const hasParticipated = testData?.TestParticipant?.participated;
     const isLiveNow =
         Test.status === "live" &&
         new Date(Test.start_time) <= now &&
@@ -85,7 +109,11 @@ const ParticipatorTestView = () => {
         const res = await apiCall("POST", `dashboard/participant/acceptInvitation`, {
             testId: searchParams.get("testId"),
         }, showSnackbar, true);
-        if (res.success) {
+        if (res.status === 200) {
+            setTestData({
+                ...testData,
+                accepted: true,
+            });
             getTestDetailsApiCall(searchParams.get("testId"), false);
         }
         setAccepting(false);
@@ -95,6 +123,19 @@ const ParticipatorTestView = () => {
         if (!testData.accepted) {
             handleAcceptInvitation();
         } else if (isLiveNow && !hasParticipated) {
+            const res=await apiCall("POST", `dashboard/participant/startTest`, {
+                testId: searchParams.get("testId"),
+            }, showSnackbar, true);
+            if (res.status === 200) {
+                const prevTestParticipant = testData.TestParticipant;
+                setTestData({
+                    ...testData,
+                    TestParticipant: {
+                        ...prevTestParticipant,
+                        participated: true,
+                    },
+                });
+            }
             await requestFullscreen();
             setStartTest(true);
         }
@@ -114,34 +155,38 @@ const ParticipatorTestView = () => {
 
     // Enforce Fullscreen
     const requestFullscreen = () => {
-        const element = document.documentElement;
-        if (element.requestFullscreen) {
-            element.requestFullscreen();
-        } else if (element.webkitRequestFullscreen) {
-            element.webkitRequestFullscreen();
-        } else if (element.mozRequestFullScreen) {
-            element.mozRequestFullScreen();
-        } else if (element.msRequestFullscreen) {
-            element.msRequestFullscreen();
+        if(startTest && faceValidate) {
+            const element = document.documentElement;
+            if (element.requestFullscreen) {
+                element.requestFullscreen();
+            } else if (element.webkitRequestFullscreen) {
+                element.webkitRequestFullscreen();
+            } else if (element.mozRequestFullScreen) {
+                element.mozRequestFullScreen();
+            } else if (element.msRequestFullscreen) {
+                element.msRequestFullscreen();
+            }
         }
     };
 
     const detectExitFullscreen = () => {
-        document.addEventListener("fullscreenchange", () => {
-            if (!document.fullscreenElement) {
-                setWarning({
-                    modalVariant: "warning",
-                    text: "You have exited Full-Screen Mode. For security, fairness and prevention from cheating Full-Screen Mode is required for the test.",
-                    buttonAction: "enable_full_screen_mode",
-                    buttonLabel: "Enter Full-Screen Mode",
-                    showModal: true
-                })
-            }
-        });
+        if(startTest && faceValidate) {
+            document.addEventListener("fullscreenchange", () => {
+                if (!document.fullscreenElement) {
+                    setWarning({
+                        modalVariant: "warning",
+                        text: "You have exited Full-Screen Mode. For security, fairness and prevention from cheating Full-Screen Mode is required for the test.",
+                        buttonAction: "enable_full_screen_mode",
+                        buttonLabel: "Enter Full-Screen Mode",
+                        showModal: true
+                    })
+                }
+            });
+        }
     };
     const handleWarningAction = () => {
         if (warnings > totalTestWarnings) {
-            console.log("Quit test");
+            handleQuitTest("Total Warnings Exceeded");
         } else {
             if (warning.buttonAction == 'enable_full_screen_mode') {
                 requestFullscreen();
@@ -153,6 +198,12 @@ const ParticipatorTestView = () => {
         }
         handleWarning();
     }
+    const handleQuitTest = async (warning) => {
+        console.log(warning);
+        setCompleteTest(true);
+        setStartTest(false);
+        setFaceValidate(false);
+    }
     const handleWarning = () => {
         setWarning({
             buttonAction: "",
@@ -163,34 +214,37 @@ const ParticipatorTestView = () => {
     }
     // Prevent tab switch and reload
     const preventTabSwitch = () => {
-        let enabledFullScreenMode = false
-        window.addEventListener("fullscreenchange", () => {
-            enabledFullScreenMode = true
-        });
-        if (enabledFullScreenMode) {
-            return;
-        }
+        console.log(startTest, faceValidate);
+        if (startTest && faceValidate) {
+            let enabledFullScreenMode = false
+            window.addEventListener("fullscreenchange", () => {
+                enabledFullScreenMode = true
+            });
+            if (enabledFullScreenMode) {
+                return;
+            }
 
-        window.addEventListener("blur", () => {
-            setWarning({
-                modalVariant: "warning",
-                text: "You have tried to switch the tab or reload. For security, fairness and prevention from cheating switching tabs or reloading is not allowed for the test.",
-                buttonAction: "tab_switch",
-                buttonLabel: "Ok Will Keep In Mind",
-                showModal: true
-            })
-        });
-        window.addEventListener("beforeunload", (e) => {
-            setWarning({
-                modalVariant: "warning",
-                text: "You have tried to switch the tab or reload. For security, fairness and prevention from cheating switching tabs or reloading is not allowed for the test.",
-                buttonAction: "tab_switch",
-                buttonLabel: "Ok Will Keep In Mind",
-                showModal: true
-            })
-            e.preventDefault();
-            e.returnValue = "";
-        });
+            window.addEventListener("blur", () => {
+                setWarning({
+                    modalVariant: "warning",
+                    text: "You have tried to switch the tab or reload. For security, fairness and prevention from cheating switching tabs or reloading is not allowed for the test.",
+                    buttonAction: "tab_switch",
+                    buttonLabel: "Ok Will Keep In Mind",
+                    showModal: true
+                })
+            });
+            window.addEventListener("beforeunload", (e) => {
+                setWarning({
+                    modalVariant: "warning",
+                    text: "You have tried to switch the tab or reload. For security, fairness and prevention from cheating switching tabs or reloading is not allowed for the test.",
+                    buttonAction: "tab_switch",
+                    buttonLabel: "Ok Will Keep In Mind",
+                    showModal: true
+                })
+                e.preventDefault();
+                e.returnValue = "";
+            });
+        }
     };
 
     // Disable copy/paste
@@ -206,16 +260,15 @@ const ParticipatorTestView = () => {
         document.body.style.msUserSelect = "none";
         document.body.style.MozUserSelect = "none";
     };
-
     // Apply restrictions and periodic face detection
     useEffect(() => {
-        if (startTest) {
+        if (startTest && faceValidate) {
             detectExitFullscreen();
             preventTabSwitch();
             disableTextSelection();
             preventCopyPaste();
         }
-    }, [startTest]);
+    }, [startTest,faceValidate]);
 
     useEffect(() => {
         let interval;
@@ -229,20 +282,48 @@ const ParticipatorTestView = () => {
 
     return (
         <div className="container py-5">
+            <h3 className="text-primary" style={{textAlign:"center", fontWeight:"bold"}}>{Test.test_name}</h3>
             {loading ? (
                 <Loading message="Fetching Test Details..." />
             ) : (
                 <Card className="shadow p-4 border-0 rounded-4 bg-white">
+                    {(completeTest) ? (
+                    <Card
+                        bg="success"
+                        text="white"
+                        className="text-center p-4 rounded-4"
+                        style={{ fontWeight: "600", fontSize: "1.3rem" }}
+                    >
+                        <Card.Body>
+                        <Card.Title>
+                            ✅ Test Completed Successfully
+                        </Card.Title>
+                        <Card.Text className="mt-3">
+                            You will get your result via email whenever your test instructor releases the results.
+                        </Card.Text>
+                        </Card.Body>
+                    </Card>
+                    )                    
+                    :<>
                     {startTest ?
                         <>
-                            {faceValidate ? <ShowParticipantQuestionSection testId={testId} /> :
+                            {faceValidate ? <>
+                                {timeLeft !== null && (
+                                    <div className="text-center my-3">
+                                        <h4 className="text-danger">
+                                            ⏳ Time Remaining: {String(Math.floor(timeLeft / 60)).padStart(2, '0')}:
+                                            {String(timeLeft % 60).padStart(2, '0')}
+                                        </h4>
+                                    </div>
+                                )}
+                                <ShowParticipantQuestionSection testId={testId} handleQuitTest={handleQuitTest}/>
+                            </>:
                                 <VerifyPhoto testId={testId} onValidate={faceValidation} ref={faceRef} />
                             }
                         </> :
                         <>
                             <Row>
                                 <Col md={8}>
-                                    <h3 className="text-primary">{Test.test_name}</h3>
                                     <p className="text-muted">{Test.description || "No description provided."}</p>
                                 </Col>
                                 <Col md={4} className="text-md-end">
@@ -351,6 +432,8 @@ const ParticipatorTestView = () => {
                             </div>
                         </>
                     }
+                    </>
+                }
                 </Card>
             )}
             {
@@ -385,3 +468,4 @@ const ParticipatorTestView = () => {
 };
 
 export default ParticipatorTestView;
+

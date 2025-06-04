@@ -10,7 +10,7 @@ const CreateTestDetails = ({ handleNext, prefilledData }) => {
         testDescription: prefilledData.description ?? "",
         testStartTime: prefilledData.start_time ? convertTimeFormate(prefilledData.start_time) : "",
         testEndTime: prefilledData.end_time ? convertTimeFormate(prefilledData.end_time) : "",
-        testDurationInSeconds: prefilledData.duration_in_seconds ? secondsToHHMM(prefilledData.duration_in_seconds) : "",
+        testDurationInSeconds: prefilledData.duration_in_seconds ? (prefilledData.duration_in_seconds/60) : "",
         studyMaterial: prefilledData.study_material ?? "",
         inviteEmailAdditionalContent: prefilledData.invite_email_additional_content ?? "",
         testInstructions: prefilledData.TestInstructions ?? [],
@@ -73,9 +73,8 @@ const CreateTestDetails = ({ handleNext, prefilledData }) => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         setLoading(true);
-        let testDurationInSeconds = formData.testDurationInSeconds;
-        const [hours, minutes] = testDurationInSeconds.split(":").map(Number);
-        testDurationInSeconds = hours * 3600 + minutes * 60;
+        let testDurationInMinutes = formData.testDurationInSeconds;
+        let testDurationInSeconds = testDurationInMinutes * 60;
         await handleNext({ ...formData, testDurationInSeconds });
         setLoading(false);
     }
@@ -139,14 +138,22 @@ const CreateTestDetails = ({ handleNext, prefilledData }) => {
                     <Form.Control type="datetime-local" name="testEndTime" value={formData.testEndTime} onChange={handleChange} required />
                 </Form.Group>
 
-                {/* Test Duration */}
                 <Form.Group className="mb-3">
-                    <Form.Label>Test Duration *{" "}
-                        <OverlayTrigger placement="right" overlay={renderTooltip("The duration of the test.")}>
-                            <FaInfoCircle className="text-muted" />
+                    <Form.Label>
+                        Test Duration (in minutes) *{" "}
+                        <OverlayTrigger placement="right" overlay={renderTooltip("Enter total test duration in minutes.")}>
+                        <FaInfoCircle className="text-muted" />
                         </OverlayTrigger>
                     </Form.Label>
-                    <Form.Control type="time" name="testDurationInSeconds" value={formData.testDurationInSeconds} onChange={handleChange} required />
+                    <Form.Control
+                        type="number"
+                        min="1"
+                        name="testDurationInSeconds"
+                        value={formData.testDurationInSeconds}
+                        onChange={handleChange}
+                        placeholder="e.g. 90 for 1h 30m"
+                        required
+                    />
                 </Form.Group>
 
                 {/* Study Material Upload */}
