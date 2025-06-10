@@ -28,5 +28,7 @@ export default {
             selected: "#64B5F6",
             notSelected: "#455A64"
         }
-    }
+    },
+    webSocketServer:"ws://localhost:8080",
+    apiBaseUrl: "http://localhost:4000",
 };

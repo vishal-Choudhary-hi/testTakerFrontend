@@ -14,6 +14,7 @@ const CreateTestDetails = ({ handleNext, prefilledData }) => {
         studyMaterial: prefilledData.study_material ?? "",
         inviteEmailAdditionalContent: prefilledData.invite_email_additional_content ?? "",
         testInstructions: prefilledData.TestInstructions ?? [],
+        totalWarningAllowed: prefilledData.total_warning_allowed ?? 0,
     });
     const [loading, setLoading] = useState(false);
     const CHARACTER_LIMITS = {
@@ -152,6 +153,24 @@ const CreateTestDetails = ({ handleNext, prefilledData }) => {
                         value={formData.testDurationInSeconds}
                         onChange={handleChange}
                         placeholder="e.g. 90 for 1h 30m"
+                        required
+                    />
+                </Form.Group>
+
+                                <Form.Group className="mb-3">
+                    <Form.Label>
+                        Total warning Allowed *{" "}
+                        <OverlayTrigger placement="right" overlay={renderTooltip("Enter total test warnings allowed in the test. After which the student will not be able to continue in the  test.")}>
+                        <FaInfoCircle className="text-muted" />
+                        </OverlayTrigger>
+                    </Form.Label>
+                    <Form.Control
+                        type="number"
+                        min="1"
+                        name=""
+                        value={formData.totalWarningAllowed}
+                        onChange={handleChange}
+                        placeholder="Enter total warning allowed"
                         required
                     />
                 </Form.Group>

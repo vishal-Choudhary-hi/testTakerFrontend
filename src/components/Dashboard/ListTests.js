@@ -6,6 +6,7 @@ import DatePicker from "react-datepicker";
 import DateRangeFilter from "../Global/DateRangeFilter";
 
 const ListTest = ({ role }) => {
+    const isMounted = useRef(false);
     const [testList, setTestList] = useState([]);
     const [page, setPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
@@ -18,6 +19,8 @@ const ListTest = ({ role }) => {
     const limit = 3;
 
     useEffect(() => {
+        if (isMounted.current) return;
+        isMounted.current = true;
         fetchTests();
         fetchTestStatus();
     }, [page, statusFilter, startDate, endDate]);

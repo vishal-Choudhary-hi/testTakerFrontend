@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useContext, useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import apiCall from "../../../services/api";
 import Loading from "../../Loading";
@@ -6,8 +6,11 @@ import { Card, Button, Badge, Row, Col, Modal } from "react-bootstrap";
 import { useSnackbar } from "../../../contexts/SnackbarContext";
 import VerifyPhoto from "./VerifyPhoto";
 import ShowParticipantQuestionSection from "./ShowParticipantQuestionSection";
+import ChatView from "../../Chats/ChatView";
+import { AuthContext } from "../../../contexts/AuthContext";
+
 const ParticipatorTestView = () => {
-    const totalTestWarnings = 50;
+    const [totalTestWarnings,setTotalTestWarnings] = useState(0);
     const navigate = useNavigate();
     const [loading, setLoading] = useState(true);
     const [searchParams] = useSearchParams();
@@ -19,11 +22,13 @@ const ParticipatorTestView = () => {
     const { showSnackbar } = useSnackbar();
     const isMounted = useRef(false);
     const faceRef = useRef();
-    const [warnings, setWarnings] = useState(0);
+    const [warnings, setWarnings] = useState(null);
     const [warning, setWarning] = useState({ buttonLabel: "", showModal: false, text: "", buttonAction: "" });
     const [completeTest, setCompleteTest] = useState(false);
     const [timeLeft, setTimeLeft] = useState(null); // in seconds
-
+    const [showChatModal, setShowChatModal] = useState(false);
+    const { user, authToken } = useContext(AuthContext);
+    const [pause,setPause]=useState(true);
     useEffect(() => {
         if (isMounted.current) return;
         isMounted.current = true;
@@ -41,12 +46,15 @@ const ParticipatorTestView = () => {
     }, [warning])
 
     useEffect(() => {
-        if (startTest && faceValidate  && testData?.Test.duration_in_seconds) {
+        if (testData?.Test.duration_in_seconds) {
             setTimeLeft(testData.Test.duration_in_seconds);
         }
-    }, [startTest,testData]);
+    }, [testData]);
 
     useEffect(() => {
+        if(pause){
+            return;
+        }
         if (timeLeft === null) return;
     
         if (timeLeft === 0) {
@@ -59,7 +67,7 @@ const ParticipatorTestView = () => {
         }, 1000);
     
         return () => clearInterval(timer);
-    }, [timeLeft]);
+    }, [timeLeft,pause]);
     
     
     const getTestDetailsApiCall = async (testId) => {
@@ -70,6 +78,7 @@ const ParticipatorTestView = () => {
             return;
         }
         setTestData(res.data);
+        setTotalTestWarnings(res.data.Test.total_warnings_allowed?.warnings || 50);
         setLoading(false);
     };
     const formatDate = (dateStr) => {
@@ -138,6 +147,7 @@ const ParticipatorTestView = () => {
             }
             await requestFullscreen();
             setStartTest(true);
+            setPause(false);
         }
     };
 
@@ -199,7 +209,6 @@ const ParticipatorTestView = () => {
         handleWarning();
     }
     const handleQuitTest = async (warning) => {
-        console.log(warning);
         setCompleteTest(true);
         setStartTest(false);
         setFaceValidate(false);
@@ -214,7 +223,6 @@ const ParticipatorTestView = () => {
     }
     // Prevent tab switch and reload
     const preventTabSwitch = () => {
-        console.log(startTest, faceValidate);
         if (startTest && faceValidate) {
             let enabledFullScreenMode = false
             window.addEventListener("fullscreenchange", () => {
@@ -282,7 +290,21 @@ const ParticipatorTestView = () => {
 
     return (
         <div className="container py-5">
-            <h3 className="text-primary" style={{textAlign:"center", fontWeight:"bold"}}>{Test.test_name}</h3>
+            <div className="d-flex justify-content-between mb-4 align-items-center">
+                <Button variant="success" className="rounded-pill fs-5" onClick={() => setShowChatModal(true)}>
+                    Chat with Instructor
+                </Button>
+                <h3 className="text-primary" style={{textAlign:"center", fontWeight:"bold"}}>{Test.test_name}</h3>
+                {showChatModal && <ChatView fromUserId={user.id} toUserId={Test.created_by} showModal={showChatModal} toUserName={Test.CreatedByUser.name} onModalClose={()=>setShowChatModal(false)} testId={testId}/>}
+                {timeLeft !== null && (
+                    <div>
+                        <h4 className="text-danger">
+                            ⏳ Time Remaining: {String(Math.floor(timeLeft / 60)).padStart(2, '0')}:
+                            {String(timeLeft % 60).padStart(2, '0')}
+                        </h4>
+                    </div>
+                )}
+            </div>
             {loading ? (
                 <Loading message="Fetching Test Details..." />
             ) : (
@@ -308,14 +330,6 @@ const ParticipatorTestView = () => {
                     {startTest ?
                         <>
                             {faceValidate ? <>
-                                {timeLeft !== null && (
-                                    <div className="text-center my-3">
-                                        <h4 className="text-danger">
-                                            ⏳ Time Remaining: {String(Math.floor(timeLeft / 60)).padStart(2, '0')}:
-                                            {String(timeLeft % 60).padStart(2, '0')}
-                                        </h4>
-                                    </div>
-                                )}
                                 <ShowParticipantQuestionSection testId={testId} handleQuitTest={handleQuitTest}/>
                             </>:
                                 <VerifyPhoto testId={testId} onValidate={faceValidation} ref={faceRef} />

@@ -1,12 +1,15 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, use, useContext } from "react";
 import apiCall from "../services/api";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import Loading from "../components/Loading";
 import { Container, Accordion, Button, Row, Col, Card, ListGroup, Badge, CardBody } from "react-bootstrap";
 import InviteDetailsAndScoreManually from "../components/InviteDetailsAndScoreManually";
 import { useSnackbar } from "../contexts/SnackbarContext";
+import ChatView from "../components/Chats/ChatView";    
+import { AuthContext } from "../contexts/AuthContext";
 
 const CreaterTestView = () => {
+    const isMounted=useRef(false);
     const navigate = useNavigate();
     const { showSnackbar } = useSnackbar();
     const [loading, setLoading] = useState(true);
@@ -17,7 +20,13 @@ const CreaterTestView = () => {
     const [loadingMessage, setLoadingMessage] = useState("Fetching Test Details");
     const [showInviteDetails, setShowInviteDetails] = useState(null);
     const [testButtonDetails, setTestButtonDetails] = useState({label:"", disabled: true});
+    const [warningMessages,setWarningMessages]=useState([]);
+    const [startChatWithUser,setStartChatWithUser] = useState(null);
+    const { user, authToken } = useContext(AuthContext);
+
     useEffect(() => {
+        if (isMounted.current) return;
+        isMounted.current = true;
         let testId = searchParams.get("testId");
         if (testId) {
             setLoading(true);
@@ -141,12 +150,22 @@ const CreaterTestView = () => {
         setLoading(false);
 
     }
+
+    const testParticipantWarnings= async(invite) => {
+        setLoading(true);
+        setLoadingMessage("Fetching Test Participant Warnings");
+        const response = await apiCall("GET", `dashboard/creater/testParticipantWarnings?inviteId=${invite.id}`, null, showSnackbar, true);
+        setLoading(false);
+        setWarningMessages(response.data);
+    }
+
     if (loading) return <Loading message= {loadingMessage}  showType="non_closeable_popup" />;
 
     return (
         <Container className="py-4">
             <h3 className="mb-4">Test Overview</h3>
-
+            {console.log(startChatWithUser)}
+            {startChatWithUser && <ChatView fromUserId={user.id} toUserId={startChatWithUser.InviteUser.id} showModal={true} toUserName={startChatWithUser.name} role='creator' onModalClose={()=>setStartChatWithUser(null)} testId={searchParams.get("testId")}/>}
             <Accordion defaultActiveKey="0">
                 {/* Test Details Section */}
                 <Accordion.Item eventKey="0">
@@ -158,6 +177,7 @@ const CreaterTestView = () => {
                             <ListGroup.Item><strong>Start Time:</strong> {formatDateTime(testData.start_time)}</ListGroup.Item>
                             <ListGroup.Item><strong>End Time:</strong> {formatDateTime(testData.end_time)}</ListGroup.Item>
                             <ListGroup.Item><strong>Duration:</strong> {formatDuration(testData.duration_in_seconds)}</ListGroup.Item>
+                            <ListGroup.Item><strong>Total Warnings Allowed:</strong> {testData.total_warning_allowed}</ListGroup.Item>
                             <ListGroup.Item><strong>Status:</strong> {testData.status}</ListGroup.Item>
                         </ListGroup>
                         {!testButtonDetails.disabled &&
@@ -213,13 +233,23 @@ const CreaterTestView = () => {
                                                 <Badge bg={invite.accepted ? "success" : "warning"} className="me-2">
                                                     {invite.accepted ? "Accepted" : "Not Accepted"}
                                                 </Badge>
-                                                <Badge bg={invite.TestParticipant?.participated ? "success" : "danger"}>
+                                                <Badge bg={invite.TestParticipant?.participated ? "success" : "danger"} className="me-2">
                                                     {invite.TestParticipant?.participated ? "Participated" : "Not Participated"}
+                                                </Badge>
+                                                <Badge bg={invite.TestParticipant?._count?.TestParticipantWarnings ? "danger" : "success"}>
+                                                    {invite.TestParticipant?._count?.TestParticipantWarnings?? 0+ " Warnings" }
                                                 </Badge>
                                             </div>
                                             <div className="mt-4 p-3 border rounded bg-light">
                                                 {!invite.TestParticipant?.participated ? 
+                                                <>
                                                     <h6>No Test Score Summary (not participated in test yet)</h6>
+                                                    <div className="d-flex justify-content-center align-items-center">
+                                                         <Button variant="success" className="mt-3" onClick={()=>setStartChatWithUser(invite)}>
+                                                            Chat With Participant
+                                                        </Button>
+                                                    </div>
+                                                </>
                                                 :
                                                     <>
                                                         <h6 className="text-primary mb-3 fw-bold">Test Score Summary</h6>
@@ -238,9 +268,19 @@ const CreaterTestView = () => {
                                                             <div className="fw-bold text-dark">Total Negative Marks:</div>
                                                             <div className="fw-bold text-danger">{getParticipantTotalNegativeScore(invite.TestParticipant.SelectedOptionMapping)}</div>
                                                         </div>
-                                                        <Button variant="primary" className="mt-3" onClick={()=>setShowInviteDetails(invite)}>
-                                                            View Details And Score Manually
-                                                        </Button>
+                                                        <div className="d-flex justify-content-between ">
+                                                            <Button variant="primary" className="mt-3 me-2" onClick={()=>setShowInviteDetails(invite)}>
+                                                                View Details And Score Manually
+                                                            </Button>
+                                                            <Button variant="danger" className="mt-3" onClick={()=>testParticipantWarnings(invite)}>
+                                                                View All Warnings
+                                                            </Button>
+                                                        </div>
+                                                        <div className="d-flex justify-content-center align-items-center">
+                                                             <Button variant="success" className="mt-3" onClick={()=>setStartChatWithUser(invite)}>
+                                                                Chat With Participant
+                                                            </Button>
+                                                        </div>
                                                     </>
                                                 }
                                             </div>

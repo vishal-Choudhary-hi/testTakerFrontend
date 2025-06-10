@@ -1,6 +1,6 @@
 import axios from "axios";
-
-const baseUrl = "https://testtakerbackend.onrender.com"
+import constants from "./constants";
+const baseUrl = constants.apiBaseUrl;
 
 const apiCall = async (method, endpoint, data = {}, showSnackbar, authRequired = true) => {
     try {

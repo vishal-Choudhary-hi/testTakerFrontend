@@ -7,7 +7,7 @@ const ShowTestCompletedScreen = () => {
     const [searchParams] = useSearchParams();
     let testId = searchParams.get("testId");
     const handleViewTestDetails = () => {
-        navigate(`/dashboard/test/${testId}`);
+        navigate(`/dashboard/test?testId=${testId}`);
     };
 
     return (
