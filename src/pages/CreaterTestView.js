@@ -7,6 +7,7 @@ import InviteDetailsAndScoreManually from "../components/InviteDetailsAndScoreMa
 import { useSnackbar } from "../contexts/SnackbarContext";
 import ChatView from "../components/Chats/ChatView";    
 import { AuthContext } from "../contexts/AuthContext";
+import TestParticipantWarningsModal from "../components/Dashboard/TestParticipantWarningsModal";
 
 const CreaterTestView = () => {
     const isMounted=useRef(false);
@@ -23,6 +24,7 @@ const CreaterTestView = () => {
     const [warningMessages,setWarningMessages]=useState([]);
     const [startChatWithUser,setStartChatWithUser] = useState(null);
     const { user, authToken } = useContext(AuthContext);
+    const [defaultAccordionKey, setDefaultAccordionKey] = useState("0");
 
     useEffect(() => {
         if (isMounted.current) return;
@@ -140,6 +142,7 @@ const CreaterTestView = () => {
             data.testId = parseInt(testData.id);
             await apiCall("POST", "dashboard/creater/changeTestStatus", data, showSnackbar, true);
         }
+        setDefaultAccordionKey("0");
         getTestDetailsApiCall(testData.id, false);
 
     }
@@ -156,6 +159,7 @@ const CreaterTestView = () => {
         setLoadingMessage("Fetching Test Participant Warnings");
         const response = await apiCall("GET", `dashboard/creater/testParticipantWarnings?inviteId=${invite.id}`, null, showSnackbar, true);
         setLoading(false);
+        setDefaultAccordionKey("3");
         setWarningMessages(response.data);
     }
 
@@ -166,7 +170,7 @@ const CreaterTestView = () => {
             <h3 className="mb-4">Test Overview</h3>
             {console.log(startChatWithUser)}
             {startChatWithUser && <ChatView fromUserId={user.id} toUserId={startChatWithUser.InviteUser.id} showModal={true} toUserName={startChatWithUser.name} role='creator' onModalClose={()=>setStartChatWithUser(null)} testId={searchParams.get("testId")}/>}
-            <Accordion defaultActiveKey="0">
+            <Accordion defaultActiveKey={defaultAccordionKey}>
                 {/* Test Details Section */}
                 <Accordion.Item eventKey="0">
                     <Accordion.Header>Test Details</Accordion.Header>
@@ -237,7 +241,7 @@ const CreaterTestView = () => {
                                                     {invite.TestParticipant?.participated ? "Participated" : "Not Participated"}
                                                 </Badge>
                                                 <Badge bg={invite.TestParticipant?._count?.TestParticipantWarnings ? "danger" : "success"}>
-                                                    {invite.TestParticipant?._count?.TestParticipantWarnings?? 0+ " Warnings" }
+                                                    {(invite.TestParticipant?._count?.TestParticipantWarnings?? 0)+ " Warnings" }
                                                 </Badge>
                                             </div>
                                             <div className="mt-4 p-3 border rounded bg-light">
@@ -245,7 +249,7 @@ const CreaterTestView = () => {
                                                 <>
                                                     <h6>No Test Score Summary (not participated in test yet)</h6>
                                                     <div className="d-flex justify-content-center align-items-center">
-                                                         <Button variant="success" className="mt-3" onClick={()=>setStartChatWithUser(invite)}>
+                                                         <Button variant="success" className="mt-3" onClick={()=>{setStartChatWithUser(invite); setDefaultAccordionKey("3");}}>
                                                             Chat With Participant
                                                         </Button>
                                                     </div>
@@ -269,15 +273,22 @@ const CreaterTestView = () => {
                                                             <div className="fw-bold text-danger">{getParticipantTotalNegativeScore(invite.TestParticipant.SelectedOptionMapping)}</div>
                                                         </div>
                                                         <div className="d-flex justify-content-between ">
-                                                            <Button variant="primary" className="mt-3 me-2" onClick={()=>setShowInviteDetails(invite)}>
+                                                            <Button variant="primary" className="mt-3 me-2" onClick={()=>{setShowInviteDetails(invite); setDefaultAccordionKey("3");}}>
                                                                 View Details And Score Manually
                                                             </Button>
-                                                            <Button variant="danger" className="mt-3" onClick={()=>testParticipantWarnings(invite)}>
+                                                            <Button type="button" variant="danger" className="mt-3" onClick={()=>testParticipantWarnings(invite)}>
                                                                 View All Warnings
                                                             </Button>
+                                                            {warningMessages.length > 0 && (
+                                                                <TestParticipantWarningsModal
+                                                                    show={true}
+                                                                    onHide={() => setWarningMessages([])}
+                                                                    warnings={warningMessages}
+                                                                />
+                                                            )}
                                                         </div>
                                                         <div className="d-flex justify-content-center align-items-center">
-                                                             <Button variant="success" className="mt-3" onClick={()=>setStartChatWithUser(invite)}>
+                                                             <Button variant="success" className="mt-3" onClick={()=>{setStartChatWithUser(invite); setDefaultAccordionKey("3");}}>
                                                                 Chat With Participant
                                                             </Button>
                                                         </div>

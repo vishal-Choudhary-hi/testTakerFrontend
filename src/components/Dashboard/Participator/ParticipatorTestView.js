@@ -41,6 +41,7 @@ const ParticipatorTestView = () => {
     }, []);
     useEffect(() => {
         if (warning.showModal) {
+            updateWarningData(warning.text);
             setWarnings(warnings + 1);
         }
     }, [warning])
@@ -69,6 +70,9 @@ const ParticipatorTestView = () => {
         return () => clearInterval(timer);
     }, [timeLeft,pause]);
     
+    const updateWarningData=(warningMessage)=>{
+        apiCall('post', `dashboard/participant/saveTestParticipantWarnings`,{testId: testId, warningMessage: warningMessage}, null, true);
+    }
     
     const getTestDetailsApiCall = async (testId) => {
         const res = await apiCall("GET", `dashboard/participant/getTestBasicDetails?testId=${testId}`, null, showSnackbar, true);
