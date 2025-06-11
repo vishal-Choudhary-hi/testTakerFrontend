@@ -168,7 +168,6 @@ const CreaterTestView = () => {
     return (
         <Container className="py-4">
             <h3 className="mb-4">Test Overview</h3>
-            {console.log(startChatWithUser)}
             {startChatWithUser && <ChatView fromUserId={user.id} toUserId={startChatWithUser.InviteUser.id} showModal={true} toUserName={startChatWithUser.name} role='creator' onModalClose={()=>setStartChatWithUser(null)} testId={searchParams.get("testId")}/>}
             <Accordion defaultActiveKey={defaultAccordionKey}>
                 {/* Test Details Section */}

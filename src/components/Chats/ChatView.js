@@ -14,7 +14,6 @@ const ChatView = ({ fromUserId, toUserId, showModal, toUserName, onModalClose,te
   },[])
   const fetchOldMessages = async () => {
     const response=await apiCall('GET', `getUserTestMessage?testId=${testId}&receiverId=${toUserId}`, null, null, true);
-    console.log("response", response);
     if (response?.data) {
       const oldMessages = response.data.map(msg => ({
         ...msg,
