@@ -109,7 +109,7 @@ const AIQuestionGenerationForm = ({ testId, onClose, onSubmit,alreadyFilledAIFor
     const payload = {
       purpose: formData.purpose,
       questionTypes: formData.questionTypes.map(q => ({
-        questionTypeId: q.id,
+        id: q.id,
         questionCount: parseInt(q.count)
       })),
       topics: formData.topics,
