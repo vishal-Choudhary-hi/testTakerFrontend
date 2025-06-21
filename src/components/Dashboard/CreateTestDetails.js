@@ -184,7 +184,6 @@ const CreateTestDetails = ({ handleNext, prefilledData }) => {
                         value={formData.studyMaterial}
                         onChange={handleChange}
                         placeholder="Provide any public link to help the participant to prepare"
-                        required
                     />                
                     </Form.Group>
                 {/* Invite Email Additional Content */}
