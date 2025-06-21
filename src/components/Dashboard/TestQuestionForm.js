@@ -2,9 +2,12 @@ import React, { useEffect, useRef, useState } from "react";
 import { Button, Form, Row, Col, Modal } from "react-bootstrap";
 import { FaTrash, FaEdit, FaPlus, FaSave } from "react-icons/fa";
 import AIQuestionGenerationForm from "./AIQuestionGenerationForm";
+import AIGeneratedQuestionForm from "./AIGeneratedQuestionForm";
 import apiCall from "../../services/api";
 import { useSearchParams } from "react-router-dom";
 import Loading from "../Loading";
+import { useReducedMotion } from "framer-motion";
+import EditQuestionModal from "./EditQuestionModal";
 
 const TestQuestionForm = ({ questions, updateQuestion, addQuestion, deleteQuestion, questionTypes }) => {
     const [editingIndex, setEditingIndex] = useState(null);
@@ -13,9 +16,31 @@ const TestQuestionForm = ({ questions, updateQuestion, addQuestion, deleteQuesti
     const [searchParams] = useSearchParams();
     const [showAIQuestionModal,setShowAIQuestionModal] = useState(false);
     const [loading, setLoading] = useState(false);
+    const [aISuggestedQuestions,setAISuggestedQuestions]=useState(null);
+    const [AIQuestionGenerationData,setAIQuestionGenerationData]=useState(null);
+    const [alreadyFilledAIFormDetails,setAlreadyFilledAIFormDetails]=useState(null);
+    const [showAIQuestionModalForm,setShowAIQuestionModalForm]=useState(false)
+    const isMounted=useRef();
+    const doNotChangeEditData=useRef();
     let previousLength = useRef();
+
+
+    useEffect(()=>{
+        if(isMounted.current)return;
+        isMounted.current=true;
+        getAIAlreadyRecommendedQuestions()
+    },[])
+    const getAIAlreadyRecommendedQuestions=async()=>{
+        const urlSearchParams = new URLSearchParams(window.location.search);
+        const response=await apiCall("GET", "dashboard/creater/getAISuggestedQuestions?testId="+urlSearchParams.get("testId"),null, null, true);
+        setAISuggestedQuestions(response.data.ai_response);
+        setAlreadyFilledAIFormDetails(response.data.creator_request);
+    };
+
     const openEditModal = (idx) => {
-        setEditData({ ...questions[idx] });
+        if(!doNotChangeEditData.current){
+            setEditData({ ...questions[idx] });
+        }
         setEditingIndex(idx);
         setErrors({});
     };
@@ -25,6 +50,7 @@ const TestQuestionForm = ({ questions, updateQuestion, addQuestion, deleteQuesti
         setEditingIndex(null);
         setEditData(null);
         setErrors({});
+        doNotChangeEditData.current=false;
     };
 
     const validate = () => {
@@ -40,12 +66,12 @@ const TestQuestionForm = ({ questions, updateQuestion, addQuestion, deleteQuesti
                 if (options.length < 2) {
                     newErrors.options = "At least 2 options are required";
                 }
-                if (!options.some(opt => opt.isCorrect)) {
+                if (!options.some(opt => (opt.isCorrect || opt.is_correct))) {
                     newErrors.correct = "At least one correct option must be selected";
                 }
             } else if (!selectedType.allow_options && !selectedType.score_manually) {
                 const options = editData.options || [];
-                if (!options.some(opt => opt.isCorrect)) {
+                if (!options.some(opt => (opt.isCorrect || opt.is_correct))) {
                     newErrors.correct = "At least one correct option must be selected";
                 }
             }
@@ -57,11 +83,15 @@ const TestQuestionForm = ({ questions, updateQuestion, addQuestion, deleteQuesti
     const saveChanges = () => {
         if (!validate()) return;
         if (editingIndex !== null) {
+            const transformedOptions = (editData.options || []).map(({ is_correct, ...opt }) => ({
+            ...opt,
+            isCorrect: opt.isCorrect ?? is_correct ?? false
+            }));
             updateQuestion(editingIndex, 'question', editData.question);
             updateQuestion(editingIndex, 'score', parseInt(editData.score));
-            updateQuestion(editingIndex, 'negativeMarks', parseInt(editData.negativeMarks));
+            updateQuestion(editingIndex, 'negativeMarks', isNaN(parseInt(editData.negativeMarks)) ? 0 : parseInt(editData.negativeMarks));
             updateQuestion(editingIndex, 'questionTypeId', parseInt(editData.questionTypeId));
-            updateQuestion(editingIndex, 'options', editData.options || []);
+            updateQuestion(editingIndex, 'options', transformedOptions);
         }
         closeModal();
     };
@@ -117,6 +147,7 @@ const TestQuestionForm = ({ questions, updateQuestion, addQuestion, deleteQuesti
     };
 
     const handleAIGenerateQuestions = async(questionData) => {
+        setAIQuestionGenerationData(questionData);
         const urlSearchParams = new URLSearchParams(window.location.search);
         let testId = urlSearchParams.get("testId");
         const requestData = {
@@ -125,8 +156,16 @@ const TestQuestionForm = ({ questions, updateQuestion, addQuestion, deleteQuesti
         }
         setLoading(true);
         await apiCall("POST", "dashboard/creater/getQuestionRecomendationFromAI", requestData, null, true);
+        await getAIAlreadyRecommendedQuestions()
+        setShowAIQuestionModalForm(false);
+
         setLoading(false);
         // setShowAIQuestionModal(false);
+    }
+    const handleAIQuestionIncluded=async(q)=>{
+        doNotChangeEditData.current=true;
+        addQuestion();
+        setEditData({...q});
     }
 
     return (
@@ -155,17 +194,24 @@ const TestQuestionForm = ({ questions, updateQuestion, addQuestion, deleteQuesti
                 );
             })}
             <button className="btn btn-primary" onClick={() => setShowAIQuestionModal(true)}>
-        Open Question Generator
-      </button>
+                Open Question Generator
+            </button>
 
             <Modal show={showAIQuestionModal} onHide={() => setShowAIQuestionModal(false)} size="lg" centered>
                 <Modal.Header closeButton>
                     <Modal.Title>AI Question Generator</Modal.Title>
                 </Modal.Header>
                 <Modal.Body>
-                    {loading ? 
-                        <Loading message="Generating Questions"/>:
-                        <AIQuestionGenerationForm onSubmit={handleAIGenerateQuestions} />
+                    {
+                        loading ? (
+                            <Loading message="Generating Questions" />
+                        ) : (
+                            (!aISuggestedQuestions||showAIQuestionModalForm) ? (
+                            <AIQuestionGenerationForm onSubmit={handleAIGenerateQuestions} alreadyFilledAIFormDetails={alreadyFilledAIFormDetails}/>
+                            ):(
+                                <AIGeneratedQuestionForm onChange={handleAIQuestionIncluded} aISuggestedQuestions={aISuggestedQuestions} generateAIQuestions={()=>handleAIGenerateQuestions(AIQuestionGenerationData)} setShowAIQuestionModalForm={()=>setShowAIQuestionModalForm(true)}/>
+                            )
+                        )
                     }
                 </Modal.Body>
             </Modal>
@@ -173,170 +219,20 @@ const TestQuestionForm = ({ questions, updateQuestion, addQuestion, deleteQuesti
                 <Button variant="primary" onClick={addQuestion}><FaPlus /> Add Question</Button>
             </div>
 
-            <Modal show={editingIndex !== null} onHide={closeModal} centered>
-                <Modal.Header closeButton>
-                    <Modal.Title>Edit Question {editingIndex + 1}</Modal.Title>
-                </Modal.Header>
-                <Modal.Body>
-                    {editData && (
-                        <>
-                            <Form.Group className="mb-3">
-                                <Form.Label>Question</Form.Label>
-                                <Form.Control
-                                    type="text"
-                                    value={editData.question}
-                                    onChange={(e) => setEditData({ ...editData, question: e.target.value })}
-                                    isInvalid={!!errors.question}
-                                />
-                                <Form.Control.Feedback type="invalid">{errors.question}</Form.Control.Feedback>
-                            </Form.Group>
-
-                            <Row>
-                                <Col md={6}>
-                                    <Form.Group>
-                                        <Form.Label>Score</Form.Label>
-                                        <Form.Control
-                                            type="number"
-                                            min={0}
-                                            value={editData.score}
-                                            onChange={(e) => setEditData({ ...editData, score: e.target.value })}
-                                            isInvalid={!!errors.score}
-                                        />
-                                        <Form.Control.Feedback type="invalid">{errors.score}</Form.Control.Feedback>
-                                    </Form.Group>
-                                </Col>
-                                <Col md={6}>
-                                    <Form.Group>
-                                        <Form.Label>Negative Marks</Form.Label>
-                                        <Form.Control
-                                            type="number"
-                                            min={0}
-                                            value={editData.negativeMarks}
-                                            onChange={(e) => setEditData({ ...editData, negativeMarks: e.target.value })}
-                                            isInvalid={!!errors.negativeMarks}
-                                        />
-                                        <Form.Control.Feedback type="invalid">{errors.negativeMarks}</Form.Control.Feedback>
-                                    </Form.Group>
-                                </Col>
-                            </Row>
-
-                            <Form.Group className="mt-3">
-                                <Form.Label>Question Type</Form.Label>
-                                <Form.Select
-                                    value={editData.questionTypeId || ''}
-                                    onChange={(e) => {
-                                        const selectedTypeId = parseInt(e.target.value);
-                                        const selectedType = questionTypes.find(type => type.id === selectedTypeId);
-                                        setEditData({
-                                            ...editData,
-                                            questionTypeId: selectedTypeId,
-                                            manual_scoring: selectedType?.score_manually ?? false,
-                                        });
-                                    }} isInvalid={!!errors.questionTypeId}
-                                >
-                                    <option value="">-- Select Question Type --</option>
-                                    {questionTypes.map(type => (
-                                        <option key={type.id} value={type.id}>{type.label}</option>
-                                    ))}
-                                </Form.Select>
-                                <Form.Control.Feedback type="invalid">{errors.questionTypeId}</Form.Control.Feedback>
-                            </Form.Group>
-                            <Form.Group className="mt-3 d-flex" style={{ justifyContent: "right" }}>
-                                <Form.Check
-                                    type="checkbox"
-                                    label="Score Manually"
-                                    checked={!!editData.manual_scoring}
-                                    onChange={(e) =>
-                                        setEditData({ ...editData, manual_scoring: e.target.checked })
-                                    }
-                                    disabled={(() => {
-                                        const selectedType = questionTypes.find(
-                                            (type) => type.id === editData.questionTypeId
-                                        );
-                                        return selectedType?.score_manually ?? false;
-                                    })()}
-                                />
-                            </Form.Group>
-                            <hr />
-
-                            {(() => {
-                                const selectedType = questionTypes.find(t => t.id === editData.questionTypeId);
-                                if (!selectedType) return null;
-
-                                if (selectedType.score_manually) {
-                                    return (
-                                        <div className="alert alert-info mt-3">
-                                            This question type does not support options or correct answers.
-                                            You will need to score it manually.
-                                        </div>
-                                    );
-                                }
-
-                                if (!selectedType.allow_options) {
-                                    return (
-                                        <Form.Group className="mt-3">
-                                            <Form.Label>Correct Answer</Form.Label>
-                                            <Form.Control
-                                                type="text"
-                                                value={editData.options?.[0]?.description || ''}
-                                                onChange={(e) => handleCorrectAnswer(e.target.value)}
-                                                isInvalid={!!errors.correctAnswer}
-                                            />
-                                            <Form.Control.Feedback type="invalid">{errors.correctAnswer}</Form.Control.Feedback>
-                                        </Form.Group>
-                                    );
-                                }
-
-                                return (
-                                    <>
-                                        <div className="d-flex justify-content-between align-items-center mt-3 mb-1">
-                                            <strong>Options</strong>
-                                            <Button size="sm" onClick={addOption}><FaPlus /> Add Option</Button>
-                                        </div>
-                                        {errors.options && <div className="text-danger mb-2">{errors.options}</div>}
-                                        {(editData.options || []).map((option, index) => (
-                                            <Row key={index} className={`align-items-center mb-2 rounded ${option.isCorrect ? 'border border-success bg-success-subtle' : ''}`}>
-                                                <Col>
-                                                    <Form.Control
-                                                        placeholder="Option description"
-                                                        value={option.description}
-                                                        onChange={(e) => handleOptionChange(index, 'description', e.target.value)}
-                                                    />
-                                                </Col>
-                                                <Col xs="auto">
-                                                    <Form.Check
-                                                        type={selectedType.allow_multiple_correct_answer ? "checkbox" : "radio"}
-                                                        name={`correctOptions-${editingIndex}`}
-                                                        className="ms-2"
-                                                        checked={option.isCorrect}
-                                                        onChange={(e) =>
-                                                            handleOptionChange(index, 'isCorrect', !option.isCorrect)
-                                                        }
-                                                    />
-                                                </Col>
-                                                <Col xs="auto">
-                                                    <Button variant="danger" size="sm" onClick={() => removeOption(index)}><FaTrash /></Button>
-                                                </Col>
-                                            </Row>
-                                        ))}
-                                        {errors.correct && <div className="text-danger mb-2">{errors.correct}</div>}
-
-                                    </>
-                                );
-                            })()}
-
-                        </>
-                    )}
-                </Modal.Body>
-                <Modal.Footer>
-                    <Button variant="outline-danger" onClick={() => { deleteQuestion(editingIndex); closeModal() }}>
-                        <FaTrash title="Delete Question" /> Delete Question
-                    </Button>
-                    <Button variant="success" onClick={saveChanges}>
-                        <FaSave /> Save Question
-                    </Button>
-                </Modal.Footer>
-            </Modal>
+            <EditQuestionModal
+                editingIndex={editingIndex}
+                editData={editData}
+                errors={errors}
+                questionTypes={questionTypes}
+                closeModal={closeModal}
+                deleteQuestion={deleteQuestion}
+                saveChanges={saveChanges}
+                handleCorrectAnswer={handleCorrectAnswer}
+                addOption={addOption}
+                removeOption={removeOption}
+                handleOptionChange={handleOptionChange}
+                setEditData={setEditData}
+            />
         </div>
     );
 };

@@ -1,6 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
 import apiCall from "../services/api";
-import * as faceapi from "face-api.js";
 import 'bootstrap/dist/css/bootstrap.min.css';
 import { Modal, Button, Spinner, Alert, ListGroup } from 'react-bootstrap';
 const UploadFile = ({
@@ -21,8 +20,10 @@ const UploadFile = ({
     const fileInputRef = useRef(null);
     const [selectedFiles, setSelectedFiles] = useState([]);
     const [alreadyUploadedDocuments, setAlreadyUploadedDocuments] = useState([]);
-
+    const isMounted=useRef()
     useEffect(() => {
+        if(isMounted.current)return;
+        isMounted.current=true;
         fetchAlreadyUploadedFiles();
     }, []);
     const fetchAlreadyUploadedFiles = async () => {

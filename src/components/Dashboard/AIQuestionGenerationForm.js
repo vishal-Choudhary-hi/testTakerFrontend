@@ -1,9 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Button } from 'react-bootstrap';
 import apiCall from '../../services/api';
 
 
-const AIQuestionGenerationForm = ({ testId, onClose, onSubmit }) => {
+const AIQuestionGenerationForm = ({ testId, onClose, onSubmit,alreadyFilledAIFormDetails }) => {
   const [formData, setFormData] = useState({
     purpose: '',
     questionTypes: [],
@@ -17,10 +17,13 @@ const AIQuestionGenerationForm = ({ testId, onClose, onSubmit }) => {
     difficultyLevels: '',
     subjects: ''
   });
+  const isMounted=useRef();
 
   const [errors, setErrors] = useState({});
 
   useEffect(() => {
+    if(isMounted.current)return;
+    isMounted.current=true;
     const fetchQuestionTypes = async () => {
         const response = await apiCall(
             "GET",
@@ -34,6 +37,9 @@ const AIQuestionGenerationForm = ({ testId, onClose, onSubmit }) => {
         }
     }
     fetchQuestionTypes();
+    if(alreadyFilledAIFormDetails){
+      setFormData(alreadyFilledAIFormDetails);
+    }
 },[])
   const addTag = (field) => {
     const input = tagInputs[field].trim();
@@ -197,7 +203,7 @@ const AIQuestionGenerationForm = ({ testId, onClose, onSubmit }) => {
           Cancel
         </Button>
         <Button variant="primary" onClick={handleSubmit}>
-          Generate Prompt
+          Generate Questions
         </Button>
         </div>
     </div>

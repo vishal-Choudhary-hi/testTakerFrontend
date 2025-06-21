@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { Accordion, Form, Button } from "react-bootstrap";
 import { BsFillPatchCheckFill, BsFillPatchQuestionFill } from "react-icons/bs";
 import TestQuestionForm from "./TestQuestionForm";
@@ -112,6 +112,7 @@ const TestQuestionSection = ({ section, index, updateSectionField, questionTypes
                             addQuestion={addQuestion}
                             deleteQuestion={deleteQuestion}
                             questionTypes={questionTypes}
+                            questionSectionId={index}
                         />
                     </Accordion.Body>
                 </Accordion.Item>

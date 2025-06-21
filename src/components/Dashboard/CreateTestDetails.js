@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Form, Button, OverlayTrigger, Tooltip } from "react-bootstrap";
 import { FaInfoCircle, FaTrash } from "react-icons/fa";
-import { convertTimeFormate, secondsToHHMM } from "../../services/functions";
+import { convertTimeFormate} from "../../services/functions";
 import Loading from "../Loading";
 const CreateTestDetails = ({ handleNext, prefilledData }) => {
     prefilledData = prefilledData ?? {};
@@ -14,7 +14,7 @@ const CreateTestDetails = ({ handleNext, prefilledData }) => {
         studyMaterial: prefilledData.study_material ?? "",
         inviteEmailAdditionalContent: prefilledData.invite_email_additional_content ?? "",
         testInstructions: prefilledData.TestInstructions ?? [],
-        totalWarningAllowed: prefilledData.total_warning_allowed ?? 0,
+        totalWarningAllowed: prefilledData.total_warning_allowed ?? null,
     });
     const [loading, setLoading] = useState(false);
     const CHARACTER_LIMITS = {
@@ -23,6 +23,7 @@ const CreateTestDetails = ({ handleNext, prefilledData }) => {
         inviteEmailAdditionalContent: 500,
         instructionHeading: 255,
         instructionDescription: 500,
+        totalWarningAllowed:500
     };
 
     // Handle Input Change
@@ -166,8 +167,7 @@ const CreateTestDetails = ({ handleNext, prefilledData }) => {
                     </Form.Label>
                     <Form.Control
                         type="number"
-                        min="1"
-                        name=""
+                        name="totalWarningAllowed"
                         value={formData.totalWarningAllowed}
                         onChange={handleChange}
                         placeholder="Enter total warning allowed"
