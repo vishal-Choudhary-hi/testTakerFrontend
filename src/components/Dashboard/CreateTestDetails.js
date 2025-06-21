@@ -34,10 +34,6 @@ const CreateTestDetails = ({ handleNext, prefilledData }) => {
         }
     };
 
-    // Handle File Upload
-    const handleFileChange = (e) => {
-        setFormData({ ...formData, studyMaterial: e.target.files[0] });
-    };
 
     // Handle Dynamic Instructions
     const handleInstructionChange = (index, field, value) => {
@@ -182,9 +178,15 @@ const CreateTestDetails = ({ handleNext, prefilledData }) => {
                             <FaInfoCircle className="text-muted" />
                         </OverlayTrigger>
                     </Form.Label>
-                    <Form.Control type="file" onChange={handleFileChange} />
-                </Form.Group>
-
+                    <Form.Control
+                        type="text"
+                        name="studyMaterial"
+                        value={formData.studyMaterial}
+                        onChange={handleChange}
+                        placeholder="Provide any public link to help the participant to prepare"
+                        required
+                    />                
+                    </Form.Group>
                 {/* Invite Email Additional Content */}
                 <Form.Group className="mb-3">
                     <Form.Label>

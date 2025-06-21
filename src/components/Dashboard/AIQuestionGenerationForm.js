@@ -86,12 +86,6 @@ const AIQuestionGenerationForm = ({ testId, onClose, onSubmit,alreadyFilledAIFor
     if (!formData.purpose) newErrors.purpose = 'Purpose is required';
     if (formData.questionTypes.length === 0) newErrors.questionTypes = 'At least one question type is required';
 
-    formData.questionTypes.forEach(q => {
-      if (!q.count || isNaN(q.count) || q.count <= 0) {
-        newErrors[`count_${q.id}`] = 'Enter a valid number';
-      }
-    });
-
     ['topics', 'difficultyLevels', 'subjects'].forEach(field => {
       if (formData[field].length === 0) {
         newErrors[field] = `At least one ${field} is required`;
@@ -110,7 +104,7 @@ const AIQuestionGenerationForm = ({ testId, onClose, onSubmit,alreadyFilledAIFor
       purpose: formData.purpose,
       questionTypes: formData.questionTypes.map(q => ({
         id: q.id,
-        count: parseInt(q.count)
+        count: 10
       })),
       topics: formData.topics,
       difficultyLevels: formData.difficultyLevels,
@@ -152,19 +146,6 @@ const AIQuestionGenerationForm = ({ testId, onClose, onSubmit,alreadyFilledAIFor
                   <label className="form-check-label me-2" htmlFor={`qtype-${q.id}`}>
                     {q.label}
                   </label>
-                  {selected && (
-                    <input
-                      type="number"
-                      min="1"
-                      placeholder="Count"
-                      className={`form-control w-auto ms-auto ${errors[`count_${q.id}`] ? 'is-invalid' : ''}`}
-                      value={selected.count}
-                      onChange={e => handleCountChange(q.id, e.target.value)}
-                    />
-                  )}
-                  {errors[`count_${q.id}`] && (
-                    <div className="invalid-feedback d-block">{errors[`count_${q.id}`]}</div>
-                  )}
                 </div>
               );
             })}
