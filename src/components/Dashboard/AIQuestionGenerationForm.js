@@ -110,7 +110,7 @@ const AIQuestionGenerationForm = ({ testId, onClose, onSubmit,alreadyFilledAIFor
       purpose: formData.purpose,
       questionTypes: formData.questionTypes.map(q => ({
         id: q.id,
-        questionCount: parseInt(q.count)
+        count: parseInt(q.count)
       })),
       topics: formData.topics,
       difficultyLevels: formData.difficultyLevels,
