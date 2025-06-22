@@ -1,5 +1,5 @@
 function convertTimeFormate(dateString, type = 'dateTime') {
-    const isoDate = "2025-04-25T14:00:00.000Z";
+    const isoDate = dateString;
     const date = new Date(isoDate);
     let formatted = null;
     if (type === 'time') {
