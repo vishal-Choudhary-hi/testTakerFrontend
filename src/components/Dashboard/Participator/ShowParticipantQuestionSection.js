@@ -3,6 +3,7 @@ import apiCall from "../../../services/api";
 import Loading from "../../Loading";
 import { Button, Card, Alert } from "react-bootstrap";
 import StartTestSection from "./StartTestSection";
+import VerifyPhoto from "./VerifyPhoto";
 
 const ShowParticipantQuestionSection = ({ testId,handleQuitTest }) => {
     const [questionSection, setQuestionSection] = useState([]);
@@ -113,6 +114,7 @@ const ShowParticipantQuestionSection = ({ testId,handleQuitTest }) => {
                             </> 
                         );
                     })}
+                    <Button variant="danger" onClick={()=>handleQuitTest('Participant marked test as completed')}>Complete Test</Button>
                 </div>
             )}
         </>

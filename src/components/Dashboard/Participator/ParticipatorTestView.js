@@ -21,7 +21,6 @@ const ParticipatorTestView = () => {
     const [faceValidate, setFaceValidate] = useState(false);
     const { showSnackbar } = useSnackbar();
     const isMounted = useRef(false);
-    const faceRef = useRef();
     const [warnings, setWarnings] = useState(null);
     const [warning, setWarning] = useState({ buttonLabel: "", showModal: false, text: "", buttonAction: "" });
     const [completeTest, setCompleteTest] = useState(false);
@@ -29,6 +28,7 @@ const ParticipatorTestView = () => {
     const [showChatModal, setShowChatModal] = useState(false);
     const { user, authToken } = useContext(AuthContext);
     const [pause,setPause]=useState(true);
+    const [canNotUpdateWarnings,setCanNotUpdateWarnings]=useState(false);
     useEffect(() => {
         if (isMounted.current) return;
         isMounted.current = true;
@@ -93,7 +93,8 @@ const ParticipatorTestView = () => {
 
     const now = new Date();
     const Test = testData?.Test || {};
-    const hasParticipated = testData?.TestParticipant?.participated;
+    // const hasParticipated = testData?.TestParticipant?.participated;
+    const hasParticipated = false;
     const isLiveNow =
         Test.status === "live" &&
         new Date(Test.start_time) <= now &&
@@ -186,7 +187,7 @@ const ParticipatorTestView = () => {
     const detectExitFullscreen = () => {
         if(startTest && faceValidate) {
             document.addEventListener("fullscreenchange", () => {
-                if (!document.fullscreenElement) {
+                if (!document.fullscreenElement && !canNotUpdateWarnings) {
                     setWarning({
                         modalVariant: "warning",
                         text: "You have exited Full-Screen Mode. For security, fairness and prevention from cheating Full-Screen Mode is required for the test.",
@@ -237,27 +238,44 @@ const ParticipatorTestView = () => {
             }
 
             window.addEventListener("blur", () => {
-                setWarning({
-                    modalVariant: "warning",
-                    text: "You have tried to switch the tab or reload. For security, fairness and prevention from cheating switching tabs or reloading is not allowed for the test.",
-                    buttonAction: "tab_switch",
-                    buttonLabel: "Ok Will Keep In Mind",
-                    showModal: true
-                })
+                if(!canNotUpdateWarnings){
+                    setWarning({
+                        modalVariant: "warning",
+                        text: "You have tried to switch the tab or reload. For security, fairness and prevention from cheating switching tabs or reloading is not allowed for the test.",
+                        buttonAction: "tab_switch",
+                        buttonLabel: "Ok Will Keep In Mind",
+                        showModal: true
+                    })
+                }
             });
             window.addEventListener("beforeunload", (e) => {
-                setWarning({
-                    modalVariant: "warning",
-                    text: "You have tried to switch the tab or reload. For security, fairness and prevention from cheating switching tabs or reloading is not allowed for the test.",
-                    buttonAction: "tab_switch",
-                    buttonLabel: "Ok Will Keep In Mind",
-                    showModal: true
-                })
-                e.preventDefault();
-                e.returnValue = "";
+                if(!canNotUpdateWarnings){
+                    setWarning({
+                        modalVariant: "warning",
+                        text: "You have tried to switch the tab or reload. For security, fairness and prevention from cheating switching tabs or reloading is not allowed for the test.",
+                        buttonAction: "tab_switch",
+                        buttonLabel: "Ok Will Keep In Mind",
+                        showModal: true
+                    })
+                    e.preventDefault();
+                    e.returnValue = "";
+                }
             });
         }
     };
+
+    const handleAllTimeFaceVerification=(faceVerified)=>{
+        if(faceVerified){
+            return;
+        }
+        setWarning({
+            modalVariant: "warning",
+            text: "Not Able to detect you in front of your screen, Please stay in front during whole test duration.",
+            buttonAction: "tab_switch",
+            buttonLabel: "Ok Will Keep In Mind",
+            showModal: true
+        })
+    }
 
     // Disable copy/paste
     const preventCopyPaste = () => {
@@ -279,36 +297,85 @@ const ParticipatorTestView = () => {
             preventTabSwitch();
             disableTextSelection();
             preventCopyPaste();
+        }else{
         }
     }, [startTest,faceValidate]);
 
-    useEffect(() => {
-        let interval;
-        if (faceValidate) {
-            interval = setInterval(() => {
-                faceRef.current?.triggerFaceDetection?.();
-            }, 180000); // 3 minutes
-        }
-        return () => clearInterval(interval);
-    }, [faceValidate]);
-
     return (
         <div className="container py-5">
-            <div className="d-flex justify-content-between mb-4 align-items-center">
-                <Button variant="success" className="rounded-pill fs-5" onClick={() => setShowChatModal(true)}>
-                    Chat with Instructor
-                </Button>
-                <h3 className="text-primary" style={{textAlign:"center", fontWeight:"bold"}}>{Test.test_name}</h3>
-                {showChatModal && <ChatView fromUserId={user.id} toUserId={Test.created_by} showModal={showChatModal} toUserName={Test.CreatedByUser.name} onModalClose={()=>setShowChatModal(false)} testId={testId}/>}
-                {timeLeft !== null && (
-                    <div>
-                        <h4 className="text-danger">
-                            ⏳ Time Remaining: {String(Math.floor(timeLeft / 60)).padStart(2, '0')}:
-                            {String(timeLeft % 60).padStart(2, '0')}
-                        </h4>
-                    </div>
-                )}
-            </div>
+            <div className="position-relative mb-4">
+  <div className="d-flex justify-content-between align-items-center flex-wrap">
+    {/* Chat Button */}
+    <Button
+      variant="success"
+      className="rounded-pill px-4 py-2 fs-6"
+      onClick={() => setShowChatModal(true)}
+    >
+      Chat with Instructor
+    </Button>
+
+    {/* Test Title */}
+    <div className="flex-grow-1 text-center">
+      <h2 className="fw-bold text-primary m-0">{Test.test_name}</h2>
+      <div className="text-muted fs-6">DSA Interview Prep</div>
+    </div>
+
+    {/* Timer */}
+    {timeLeft !== null && (
+      <div className="text-end text-danger">
+        <div className="fs-6">⏳ Time Remaining</div>
+        <div className="fs-4 fw-bold">
+          {String(Math.floor(timeLeft / 60)).padStart(2, '0')}:
+          {String(timeLeft % 60).padStart(2, '0')}
+        </div>
+      </div>
+    )}
+  </div>
+
+  {/* Chat Modal */}
+  {showChatModal && (
+    <ChatView
+      fromUserId={user.id}
+      toUserId={Test.created_by}
+      showModal={showChatModal}
+      toUserName={Test.CreatedByUser.name}
+      onModalClose={() => setShowChatModal(false)}
+      testId={testId}
+    />
+  )}
+
+  {/* Webcam Face Verification in bottom-right corner */}
+  {startTest && faceValidate && (
+    <div
+      style={{
+        position: "fixed",
+        bottom: "20px",
+        right: "20px",
+        width: "220px",
+        height: "160px",
+        zIndex: 999,
+        boxShadow: "0 4px 12px rgba(0,0,0,0.3)",
+        borderRadius: "12px",
+        overflow: "hidden",
+      }}
+    >
+      <VerifyPhoto
+        testId={testId}
+        onValidate={handleAllTimeFaceVerification}
+        showOnlyFaceCam={true}
+        verifyFaceOnRegularIntervals={true}
+        customStyle={{
+          width: "100%",
+          height: "100%",
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+        }}
+      />
+    </div>
+  )}
+</div>
+
             {loading ? (
                 <Loading message="Fetching Test Details..." />
             ) : (
@@ -336,7 +403,7 @@ const ParticipatorTestView = () => {
                             {faceValidate ? <>
                                 <ShowParticipantQuestionSection testId={testId} handleQuitTest={handleQuitTest}/>
                             </>:
-                                <VerifyPhoto testId={testId} onValidate={faceValidation} ref={faceRef} />
+                                <VerifyPhoto testId={testId} onValidate={faceValidation}/>
                             }
                         </> :
                         <>
