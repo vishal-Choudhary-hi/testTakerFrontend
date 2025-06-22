@@ -29,6 +29,6 @@ export default {
             notSelected: "#455A64"
         }
     },
-    webSocketServer:"ws://localhost:8080",
-    apiBaseUrl: "http://localhost:4000",
+    webSocketServer:"ws://testtakerbackend.onrender.com/",
+    apiBaseUrl: "https://testtakerbackend.onrender.com/",
 };
