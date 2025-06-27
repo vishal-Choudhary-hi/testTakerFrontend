@@ -29,6 +29,6 @@ export default {
             notSelected: "#455A64"
         }
     },
-    webSocketServer:"ws://testtakerbackend.onrender.com",
+    webSocketServer:"wss://testtakerbackend.onrender.com",
     apiBaseUrl: "https://testtakerbackend.onrender.com",
 };
