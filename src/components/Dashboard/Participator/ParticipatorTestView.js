@@ -306,6 +306,8 @@ const ParticipatorTestView = () => {
             <div className="position-relative mb-4">
   <div className="d-flex justify-content-between align-items-center flex-wrap">
     {/* Chat Button */}
+    {
+        !loading &&
     <Button
       variant="success"
       className="rounded-pill px-4 py-2 fs-6"
@@ -313,6 +315,7 @@ const ParticipatorTestView = () => {
     >
       Chat with Instructor
     </Button>
+    }
 
     {/* Test Title */}
     <div className="flex-grow-1 text-center">
