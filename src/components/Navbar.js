@@ -30,13 +30,13 @@ const Navbar = () => {
       <div className="container">
         {/* Brand Logo */}
         <Link to="/" className="navbar-brand d-flex align-items-center">
-          <img
+          {/* <img
             src={logo}
             alt="Logo"
             className="img-fluid me-2"
             style={{ height: "45px" }}
-          />
-          <span className="fw-semibold fs-5 text-primary">TestTaker</span>
+          /> */}
+          <span className="fw-semibold fs-5 text-primary">TestEra</span>
         </Link>
 
         {/* Toggler Button */}
