@@ -12,22 +12,34 @@ const Navbar = () => {
     navigate("/login");
   };
 
+  const handleNavLinkClick = () => {
+    const collapseEl = document.getElementById("navbarNav");
+    if (collapseEl?.classList.contains("show")) {
+      const bsCollapse = new window.bootstrap.Collapse(collapseEl, {
+        toggle: true,
+      });
+      bsCollapse.toggle();
+    }
+  };
+
   return (
     <nav
-      className="navbar navbar-expand-lg navbar-light shadow-sm"
-      style={{ backgroundColor: "#d7e9ff", fontFamily: "Poppins, sans-serif" }}
+      className="navbar navbar-expand-lg bg-body-tertiary shadow-sm"
+      style={{ fontFamily: "Poppins, sans-serif" }}
     >
       <div className="container">
-        {/* Logo */}
-        <img
-          src={logo}
-          alt="Logo"
-          className="img-fluid me-3"
-          style={{ height: "50px", cursor: "pointer" }}
-          onClick={() => navigate("/dashboard")}
-        />
+        {/* Brand Logo */}
+        <Link to="/" className="navbar-brand d-flex align-items-center">
+          <img
+            src={logo}
+            alt="Logo"
+            className="img-fluid me-2"
+            style={{ height: "45px" }}
+          />
+          <span className="fw-semibold fs-5 text-primary">TestTaker</span>
+        </Link>
 
-        {/* Toggler */}
+        {/* Toggler Button */}
         <button
           className="navbar-toggler"
           type="button"
@@ -40,23 +52,34 @@ const Navbar = () => {
           <span className="navbar-toggler-icon"></span>
         </button>
 
-        {/* Menu Items */}
+        {/* Navbar Links */}
         <div className="collapse navbar-collapse" id="navbarNav">
           <ul className="navbar-nav ms-auto align-items-center gap-3">
             <li className="nav-item">
-              <Link className="nav-link gradient-btn" to="/about">
+              <Link
+                to="/about"
+                className="nav-link text-dark px-3"
+                onClick={handleNavLinkClick}
+              >
                 About
               </Link>
             </li>
             <li className="nav-item">
               {!authToken ? (
-                <Link className="nav-link gradient-btn" to="/login">
+                <Link
+                  to="/login"
+                  className="btn btn-outline-primary px-4 rounded-pill"
+                  onClick={handleNavLinkClick}
+                >
                   Login
                 </Link>
               ) : (
                 <button
-                  className="btn nav-link gradient-btn border-0 bg-transparent"
-                  onClick={handleLogOut}
+                  className="btn btn-primary px-4 rounded-pill"
+                  onClick={() => {
+                    handleLogOut();
+                    handleNavLinkClick();
+                  }}
                 >
                   Logout
                 </button>
