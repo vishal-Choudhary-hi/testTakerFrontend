@@ -29,7 +29,7 @@ const Navbar = () => {
     >
       <div className="container">
         {/* Brand Logo */}
-        <Link to="/" className="navbar-brand d-flex align-items-center">
+        <Link to="/dashboard" className="navbar-brand d-flex align-items-center">
           {/* <img
             src={logo}
             alt="Logo"
