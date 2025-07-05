@@ -88,7 +88,7 @@ const ParticipatorTestView = () => {
       const data = JSON.parse(event.data);
       console.log("Received message:", data);
         if (data.type === "video_call" || data.type === "video_call_disconnect") {
-            setVideoCallLink(data.videoLink);
+            setVideoCallLink(data.link);
         }   
     };
     return () => newSocket.close();
@@ -325,9 +325,20 @@ const ParticipatorTestView = () => {
         }
     }, [startTest,faceValidate]);
 
+    const handleCloseVideoCall = () => {
+        setVideoCallLink(null);
+        socket.send(JSON.stringify({
+            type: "video_call_disconnect",
+            from: user.id,
+            to: Test.created_by,
+            testId: searchParams.get("testId"),
+            link: null,
+        }));
+    }
+
     return (
         <div className="container py-5">
-            {videoCallLink && <ShowVideoCallIframe link={videoCallLink} />}
+            {videoCallLink && <ShowVideoCallIframe link={videoCallLink} onDisconnect={handleCloseVideoCall}/>}
             <div className="position-relative mb-4">
   <div className="d-flex justify-content-between align-items-center flex-wrap">
     {/* Chat Button */}
