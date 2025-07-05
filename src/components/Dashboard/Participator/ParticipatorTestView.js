@@ -8,6 +8,8 @@ import VerifyPhoto from "./VerifyPhoto";
 import ShowParticipantQuestionSection from "./ShowParticipantQuestionSection";
 import ChatView from "../../Chats/ChatView";
 import { AuthContext } from "../../../contexts/AuthContext";
+import ShowVideoCallIframe from "../../VideoCall/ShowVideoCallIframe";
+import constants from "../../../services/constants";
 
 const ParticipatorTestView = () => {
     const [totalTestWarnings,setTotalTestWarnings] = useState(0);
@@ -29,6 +31,10 @@ const ParticipatorTestView = () => {
     const { user, authToken } = useContext(AuthContext);
     const [pause,setPause]=useState(true);
     const [canNotUpdateWarnings,setCanNotUpdateWarnings]=useState(false);
+    const [socket, setSocket] = useState(null);
+    const [videoCallLink, setVideoCallLink] = useState(null);
+
+
     useEffect(() => {
         if (isMounted.current) return;
         isMounted.current = true;
@@ -70,6 +76,24 @@ const ParticipatorTestView = () => {
         return () => clearInterval(timer);
     }, [timeLeft,pause]);
     
+
+    useEffect(() => {
+    if (!user?.id || socket) return;
+    const newSocket = new WebSocket(constants.webSocketServer);
+    setSocket(newSocket);
+    newSocket.onopen = () => {
+        newSocket.send(JSON.stringify({ type: "register", userId: user.id }));
+    };
+    newSocket.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      console.log("Received message:", data);
+        if (data.type === "video_call" || data.type === "video_call_disconnect") {
+            setVideoCallLink(data.videoLink);
+        }   
+    };
+    return () => newSocket.close();
+  }, [user.id]);
+
     const updateWarningData=(warningMessage)=>{
         apiCall('post', `dashboard/participant/saveTestParticipantWarnings`,{testId: testId, warningMessage: warningMessage}, null, true);
     }
@@ -303,6 +327,7 @@ const ParticipatorTestView = () => {
 
     return (
         <div className="container py-5">
+            {videoCallLink && <ShowVideoCallIframe link={videoCallLink} />}
             <div className="position-relative mb-4">
   <div className="d-flex justify-content-between align-items-center flex-wrap">
     {/* Chat Button */}
@@ -344,6 +369,7 @@ const ParticipatorTestView = () => {
       toUserName={Test.CreatedByUser.name}
       onModalClose={() => setShowChatModal(false)}
       testId={testId}
+      socket={socket}
     />
   )}
 

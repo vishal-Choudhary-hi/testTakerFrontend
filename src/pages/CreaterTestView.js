@@ -2,12 +2,16 @@ import React, { useEffect, useState, useRef, use, useContext } from "react";
 import apiCall from "../services/api";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import Loading from "../components/Loading";
+import { FaComments, FaVideo } from "react-icons/fa";
 import { Container, Accordion, Button, Row, Col, Card, ListGroup, Badge, CardBody } from "react-bootstrap";
 import InviteDetailsAndScoreManually from "../components/InviteDetailsAndScoreManually";
 import { useSnackbar } from "../contexts/SnackbarContext";
 import ChatView from "../components/Chats/ChatView";    
 import { AuthContext } from "../contexts/AuthContext";
 import TestParticipantWarningsModal from "../components/Dashboard/TestParticipantWarningsModal";
+import VideoCall from "../components/VideoCall/VideoCall";
+import constants from "../services/constants";
+import ShowVideoCallIframe from "../components/VideoCall/ShowVideoCallIframe";
 
 const CreaterTestView = () => {
     const isMounted=useRef(false);
@@ -25,6 +29,8 @@ const CreaterTestView = () => {
     const [startChatWithUser,setStartChatWithUser] = useState(null);
     const { user, authToken } = useContext(AuthContext);
     const [defaultAccordionKey, setDefaultAccordionKey] = useState("0");
+    const [socket, setSocket] = useState(null);
+    const [videoCallLink, setVideoCallLink] = useState(null);
 
     useEffect(() => {
         if (isMounted.current) return;
@@ -36,6 +42,25 @@ const CreaterTestView = () => {
             getTestDetailsApiCall(testId);
         }
     }, []);
+
+    //set socket on connection
+    useEffect(() => {
+        if (socket) return;
+        const newSocket = new WebSocket(constants.webSocketServer);
+        setSocket(newSocket);
+    
+        newSocket.onopen = () => {
+          newSocket.send(JSON.stringify({ type: "register", userId: user.id }));
+        };
+        newSocket.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            if (data.type === "video_call_disconnect") {
+                setVideoCallLink(data.link);
+            }
+        };
+        return () => newSocket.close();
+    }, [user.id]);
+
     useEffect(() => {
         if(testData === null) return;
         if (testData.status === "result_pending") {
@@ -55,6 +80,7 @@ const CreaterTestView = () => {
         setTestData(res.data);
         setLoading(false);
     };
+
 
     const scrollToQuestion = (sectionIndex, questionIndex) => {
         const id = `question-${sectionIndex}-${questionIndex}`;
@@ -163,12 +189,47 @@ const CreaterTestView = () => {
         setWarningMessages(response.data);
     }
 
+    const getVideoLink = async (invite) => {
+        setLoading(true);
+        setLoadingMessage("Generating Video Call Link");
+        const generateVideoCallLink = async () => {
+            const response = await apiCall("get", `dashboard/creater/generateVideoCallLink?toUserId=${invite.InviteUser.id}`, null, null, true);
+            if (response?.data?.roomId) {
+                const roomId=response.data.roomId;
+                const testCreatorLink=constants.videoCallBaseUrl+"/meet?roomId=" + roomId + "&inviteId="+user.id;
+                const participantLink=constants.videoCallBaseUrl+"/meet?roomId=" + roomId + "&inviteId="+invite.InviteUser.id;
+                socket.send(JSON.stringify({
+                    type: "video_call",
+                    from: user.id,
+                    to: invite.InviteUser.id,
+                    testId: searchParams.get("testId"),
+                    link: participantLink,
+                }));
+                setVideoCallLink(testCreatorLink);
+            }
+            setLoading(false);
+        };
+        generateVideoCallLink();
+    }
+
+    const handleCloseVideoCall = () => {
+        setVideoCallLink(null);
+        socket.send(JSON.stringify({
+            type: "video_call_disconnect",
+            from: user.id,
+            to: startChatWithUser?.InviteUser.id,
+            testId: searchParams.get("testId"),
+            link: null,
+        }));
+    }
+
     if (loading) return <Loading message= {loadingMessage}  showType="non_closeable_popup" />;
 
     return (
         <Container className="py-4">
             <h3 className="mb-4">Test Overview</h3>
-            {startChatWithUser && <ChatView fromUserId={user.id} toUserId={startChatWithUser.InviteUser.id} showModal={true} toUserName={startChatWithUser.name} role='creator' onModalClose={()=>setStartChatWithUser(null)} testId={searchParams.get("testId")}/>}
+            {startChatWithUser && <ChatView fromUserId={user.id} toUserId={startChatWithUser.InviteUser.id} showModal={true} toUserName={startChatWithUser.name} role='creator' onModalClose={()=>setStartChatWithUser(null)} testId={searchParams.get("testId")} socket={socket}/>}
+            {videoCallLink && <ShowVideoCallIframe link={videoCallLink} onDisconnect={handleCloseVideoCall}/>}
             <Accordion defaultActiveKey={defaultAccordionKey}>
                 {/* Test Details Section */}
                 <Accordion.Item eventKey="0">
@@ -247,11 +308,31 @@ const CreaterTestView = () => {
                                                 {!invite.TestParticipant?.participated ? 
                                                 <>
                                                     <h6>No Test Score Summary (not participated in test yet)</h6>
-                                                    <div className="d-flex justify-content-center align-items-center">
-                                                         <Button variant="success" className="mt-3" onClick={()=>{setStartChatWithUser(invite); setDefaultAccordionKey("3");}}>
-                                                            Chat With Participant
+                                                    <div className="d-flex justify-content-center align-items-center gap-3 flex-wrap mt-3">
+                                                        <Button
+                                                            variant="success"
+                                                            className="d-flex align-items-center gap-2 px-4 py-2"
+                                                            onClick={() => {
+                                                            setStartChatWithUser(invite);
+                                                            setDefaultAccordionKey("3");
+                                                            }}
+                                                        >
+                                                            <FaComments />
+                                                            Chat with Participant
                                                         </Button>
-                                                    </div>
+
+                                                        <Button
+                                                            variant="primary"
+                                                            className="d-flex align-items-center gap-2 px-4 py-2"
+                                                            onClick={() => {
+                                                            getVideoLink(invite);
+                                                            setDefaultAccordionKey("3");
+                                                            }}
+                                                        >
+                                                            <FaVideo />
+                                                            Initiate Video Call
+                                                        </Button>
+                                                        </div>
                                                 </>
                                                 :
                                                     <>
@@ -286,11 +367,32 @@ const CreaterTestView = () => {
                                                                 />
                                                             )}
                                                         </div>
-                                                        <div className="d-flex justify-content-center align-items-center">
-                                                             <Button variant="success" className="mt-3" onClick={()=>{setStartChatWithUser(invite); setDefaultAccordionKey("3");}}>
-                                                                Chat With Participant
-                                                            </Button>
+                                                        <div className="d-flex justify-content-center align-items-center gap-3 flex-wrap mt-3">
+                                                        <Button
+                                                            variant="success"
+                                                            className="d-flex align-items-center gap-2 px-4 py-2"
+                                                            onClick={() => {
+                                                            setStartChatWithUser(invite);
+                                                            setDefaultAccordionKey("3");
+                                                            }}
+                                                        >
+                                                            <FaComments />
+                                                            Chat with Participant
+                                                        </Button>
+
+                                                        <Button
+                                                            variant="primary"
+                                                            className="d-flex align-items-center gap-2 px-4 py-2"
+                                                            onClick={() => {
+                                                            getVideoLink(invite);
+                                                            setDefaultAccordionKey("3");
+                                                            }}
+                                                        >
+                                                            <FaVideo />
+                                                            Initiate Video Call
+                                                        </Button>
                                                         </div>
+
                                                     </>
                                                 }
                                             </div>

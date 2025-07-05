@@ -31,4 +31,8 @@ export default {
     },
     webSocketServer:"wss://testtakerbackend.onrender.com",
     apiBaseUrl: "https://testtakerbackend.onrender.com",
+    // videoCallBaseUrl:"https://vedio-calling-frontend.vercel.app",
+    videoCallBaseUrl:"https://vedio-calling-frontend.vercel.app",
+    // webSocketServer:"ws://localhost:4000",
+    // apiBaseUrl: "http://localhost:4000",
 };

@@ -1,14 +1,15 @@
-import { useEffect, useRef, useState } from "react";
+import { use, useEffect, useRef, useState } from "react";
 import { Modal,Offcanvas } from "react-bootstrap";
 import { FiSend } from "react-icons/fi";
 import constants from "../../services/constants";
 import apiCall from "../../services/api";
-const ChatView = ({ fromUserId, toUserId, showModal, toUserName, onModalClose,testId }) => {
+const ChatView = ({ fromUserId, toUserId, showModal, toUserName, onModalClose,testId,socket }) => {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const socketRef = useRef(null);
   const messagesEndRef = useRef(null);
 
+  socketRef.current = socket;
   useEffect(() => {
     fetchOldMessages();
   },[])
@@ -23,25 +24,26 @@ const ChatView = ({ fromUserId, toUserId, showModal, toUserName, onModalClose,te
       setMessages(oldMessages);
     }
   }
-  useEffect(() => {
-    const socket = new WebSocket(constants.webSocketServer);
-    socketRef.current = socket;
-
-    socket.onopen = () => {
-      socket.send(JSON.stringify({ type: "register", userId: fromUserId }));
-    };
-
-    socket.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-      setMessages((prev) => [...prev, { ...data, incoming: true }]);
-    };
-
-    return () => socket.close();
-  }, [fromUserId]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  useEffect(() => {
+    if (!socketRef.current) return;
+
+    const handleMessage = (event) => {
+      const data = JSON.parse(event.data);
+      if (data.type !== "message") return;
+      setMessages((prev) => [...prev, { ...data, incoming: true }]);
+    };
+
+    socketRef.current.addEventListener("message", handleMessage);
+
+    return () => {
+      socketRef.current?.removeEventListener("message", handleMessage);
+    };
+  }, []);
 
   const sendMessage = () => {
     if (!input.trim()) return;
